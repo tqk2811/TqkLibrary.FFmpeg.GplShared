@@ -1,0 +1,3 @@
+[submodule "FFmpegBuildSubmodule"]
+	path = FFmpegBuildSubmodule
+	url = https://gitlab.com/tqk2811/FFmpegBuildSubmodule.git
