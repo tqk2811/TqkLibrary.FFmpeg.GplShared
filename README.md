@@ -1,3 +1,3 @@
 # TqkLibrary.FFmpeg.GplShared
 
-ffmpeg-n5.1.2-8-g5746987bad-win-gpl-shared-5.1
+ffmpeg-n6.1.1-1-g61b88b4dda-gpl-shared-6.1
