@@ -19,7 +19,7 @@
 		<file src="README.md" target="docs\" />
 		<file src="TqkLibrary.FFmpeg.GplShared.props" target="build\" />
 
-		<file src="FFmpegBuildSubmodule\out\ffmpeg-n5.1.2-8-g5746987bad-win64-gpl-shared-5.1\bin\*.dll" target="runtimes\win-x64\native\" />
-		<file src="FFmpegBuildSubmodule\out\ffmpeg-n5.1.2-8-g5746987bad-win32-gpl-shared-5.1\bin\*.dll" target="runtimes\win-x86\native\" />
+		<file src="FFmpegBuildSubmodule\out\ffmpeg-n6.1.1-1-g61b88b4dda-win64-gpl-shared-6.1\bin\*.dll" target="runtimes\win-x64\native\" />
+		<file src="FFmpegBuildSubmodule\out\ffmpeg-n6.1.1-1-g61b88b4dda-win64-gpl-shared-6.1\bin\*.dll" target="runtimes\win-x86\native\" />
 	</files>
 </package>
