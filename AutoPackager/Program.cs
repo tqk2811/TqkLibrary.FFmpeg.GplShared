@@ -129,7 +129,8 @@ namespace AutoPackager
                 File.WriteAllText(runtimeNuspecPath, runtimeNuspec);
 
                 // Copy README and props to the extracted directory so they can be found by nuget without changing the base path
-                File.Copy(Path.Combine(rootDir, "README.md"), Path.Combine(extractedBaseDir, "README.md"), true);
+                string readmeContent = $"# TqkLibrary.FFmpeg.GplShared\n\n{Path.GetFileNameWithoutExtension(zipFile)}";
+                File.WriteAllText(Path.Combine(extractedBaseDir, "README.md"), readmeContent);
                 File.Copy(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.props"), Path.Combine(extractedBaseDir, "TqkLibrary.FFmpeg.GplShared.props"), true);
                 File.Copy(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Runtime.props"), Path.Combine(extractedBaseDir, "TqkLibrary.FFmpeg.Runtime.props"), true);
 
