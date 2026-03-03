@@ -110,7 +110,7 @@ namespace AutoPackager
                 }
                 else if (archiveFile.EndsWith(".tar.xz", StringComparison.OrdinalIgnoreCase))
                 {
-                    RunCommand("tar", $"-xf \"{archiveFile}\" -C \"{extractPath}\"");
+                    RunCommand("tar", $"-xf \"{archiveFile}\" -C \"{extractPath}\"", null, true);
                 }
 
                 // The extracted folder usually has a subfolder named identical to the zip name without .zip
@@ -119,6 +119,36 @@ namespace AutoPackager
                 if (string.IsNullOrEmpty(extractedBaseDir))
                 {
                     extractedBaseDir = extractPath; // Fallback
+                }
+                
+                // Fix Linux/Mac symlinks missing on Windows extraction
+                if (osName == "Linux" || osName == "Mac")
+                {
+                    string libDir = Path.Combine(extractedBaseDir, "lib");
+                    if (Directory.Exists(libDir))
+                    {
+                        var libFiles = Directory.GetFiles(libDir, "*.*");
+                        foreach (var libFile in libFiles)
+                        {
+                            string fileName = Path.GetFileName(libFile);
+                            string baseName = null;
+                            
+                            var soMatch = Regex.Match(fileName, @"^(.*?\.so)\.");
+                            if (soMatch.Success) baseName = soMatch.Groups[1].Value;
+                            
+                            var dylibMatch = Regex.Match(fileName, @"^(.*?)\.\d+\.dylib$");
+                            if (dylibMatch.Success) baseName = dylibMatch.Groups[1].Value + ".dylib";
+                            
+                            if (baseName != null)
+                            {
+                                string basePath = Path.Combine(libDir, baseName);
+                                if (!File.Exists(basePath))
+                                {
+                                    File.Copy(libFile, basePath);
+                                }
+                            }
+                        }
+                    }
                 }
                 
                 string relativeBaseDir = ".";
@@ -211,7 +241,7 @@ namespace AutoPackager
             RunCommand("git", "commit -m \"Auto-generated packager and modified nuspec process\"", rootDir);
         }
 
-        static void RunCommand(string exe, string args, string workingDir = null)
+        static void RunCommand(string exe, string args, string workingDir = null, bool ignoreErrors = false)
         {
             var psi = new ProcessStartInfo(exe, args)
             {
@@ -232,7 +262,7 @@ namespace AutoPackager
             
             process.WaitForExit();
 
-            if (process.ExitCode != 0)
+            if (process.ExitCode != 0 && !ignoreErrors)
             {
                 var error = errorTask.Result;
                 var output = outputTask.Result;
