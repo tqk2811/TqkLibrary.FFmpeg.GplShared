@@ -1,11 +1,11 @@
-Remove-Item -Recurse -Force .\Release\** -ErrorAction SilentlyContinue
-nuget pack .\TqkLibrary.FFmpeg.GplShared.nuspec -OutputDirectory .\Release
-nuget pack .\TqkLibrary.FFmpeg.Runtimes.nuspec -OutputDirectory .\Release
+Remove-Item -Recurse -Force .\Packages\** -ErrorAction SilentlyContinue
+dotnet run --project .\AutoPackager\AutoPackager.csproj
 
 $localNuget = $env:localNuget
-if(![string]::IsNullOrWhiteSpace($localNuget))
+if(![string]::IsNullOrWhiteSpace($localNuget) -and (Test-Path $localNuget))
 {
-    Copy-Item .\Release\*.nupkg -Destination $localNuget -Force
+    Copy-Item .\Packages\*.nupkg -Destination $localNuget -Force
+    Write-Host "Copied packages to $localNuget"
 }
 
 $nugetKey=$env:nugetKey
@@ -21,6 +21,6 @@ else
 	Write-Host "enter to confirm"
     pause
 
-	nuget push ".\Release\*" -ApiKey $($nugetKey) -Source "https://api.nuget.org/v3/index.json" -SkipDuplicate
+	nuget push ".\Packages\*.nupkg" -ApiKey $($nugetKey) -Source "https://api.nuget.org/v3/index.json" -SkipDuplicate
 }
 pause
