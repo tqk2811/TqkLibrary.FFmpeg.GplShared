@@ -40,10 +40,10 @@ namespace AutoPackager
                 Console.WriteLine("nuget.exe downloaded.");
             }
 
-            var zipFiles = Directory.GetFiles(artifactsDir, "*-win*.zip");
-            if (zipFiles.Length == 0)
+            var archiveFiles = Directory.EnumerateFiles(artifactsDir, "*.*").Where(s => s.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || s.EndsWith(".tar.xz", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (archiveFiles.Length == 0)
             {
-                Console.WriteLine("No zip files found.");
+                Console.WriteLine("No archive files found.");
                 return;
             }
 
@@ -66,12 +66,12 @@ namespace AutoPackager
                 Directory.Delete(tempDir, true);
             }
 
-            foreach (var zipFile in zipFiles)
+            foreach (var archiveFile in archiveFiles)
             {
-                var match = regex.Match(Path.GetFileName(zipFile));
+                var match = regex.Match(Path.GetFileName(archiveFile));
                 if (!match.Success)
                 {
-                    Console.WriteLine($"Skipping unrecognised zip file: {zipFile}");
+                    Console.WriteLine($"Skipping unrecognised archive file: {archiveFile}");
                     continue;
                 }
 
@@ -86,8 +86,14 @@ namespace AutoPackager
                     "win32" => "x86",
                     "win64" => "x64",
                     "winarm64" => "arm64",
+                    "linux64" => "x64",
+                    "linuxarm64" => "arm64",
+                    "mac64" => "x64",
                     _ => throw new Exception($"Unknown arch {winArch}")
                 };
+
+                string osName = winArch.StartsWith("win") ? "Win" : (winArch.StartsWith("linux") ? "Linux" : "Mac");
+                string osId = winArch.StartsWith("win") ? "win" : (winArch.StartsWith("linux") ? "linux" : "osx");
 
                 Console.WriteLine($"Processing Version: {version}, Arch: {arch}");
 
@@ -98,7 +104,14 @@ namespace AutoPackager
                 Directory.CreateDirectory(extractPath);
 
                 Console.WriteLine("Extracting...");
-                ZipFile.ExtractToDirectory(zipFile, extractPath);
+                if (archiveFile.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    ZipFile.ExtractToDirectory(archiveFile, extractPath);
+                }
+                else if (archiveFile.EndsWith(".tar.xz", StringComparison.OrdinalIgnoreCase))
+                {
+                    RunCommand("tar", $"-xf \"{archiveFile}\" -C \"{extractPath}\"");
+                }
 
                 // The extracted folder usually has a subfolder named identical to the zip name without .zip
                 // e.g., ffmpeg-n4.4.6-86-g810c930d7a-win64-gpl-shared-4.4
@@ -112,23 +125,25 @@ namespace AutoPackager
 
                 // GplShared nuspec
                 string gplSharedNuspec = gplSharedNuspecTemplate
-                    .Replace("<id>TqkLibrary.FFmpeg.GplShared</id>", $"<id>TqkLibrary.FFmpeg.GplShared.Window.{arch}</id>")
+                    .Replace("<id>TqkLibrary.FFmpeg.GplShared</id>", $"<id>TqkLibrary.FFmpeg.GplShared.{osName}.{arch}</id>")
                     .Replace("$version$", version)
-                    .Replace("$os$", "win")
+                    .Replace("$osName$", osName)
+                    .Replace("$os$", osId)
                     .Replace("$arch$", arch)
                     .Replace("$basePath$", relativeBaseDir);
 
                 // Runtime nuspec
                 string runtimeNuspec = runtimeNuspecTemplate
-                    .Replace("<id>TqkLibrary.FFmpeg.Runtimes</id>", $"<id>TqkLibrary.FFmpeg.Runtime.Window.{arch}</id>")
+                    .Replace("<id>TqkLibrary.FFmpeg.Runtimes</id>", $"<id>TqkLibrary.FFmpeg.Runtime.{osName}.{arch}</id>")
                     .Replace("[$version$,$version$]", $"[{version},{version}]")
                     .Replace("$version$", version)
-                    .Replace("$os$", "win")
+                    .Replace("$osName$", osName)
+                    .Replace("$os$", osId)
                     .Replace("$arch$", arch)
                     .Replace("$path$", $@"{relativeBaseDir}\bin");
                 
-                // Ensure dependencies point to Window.<arch>
-                runtimeNuspec = runtimeNuspec.Replace("<dependency id=\"TqkLibrary.FFmpeg.GplShared\"", $"<dependency id=\"TqkLibrary.FFmpeg.GplShared.Window.{arch}\"");
+                // Ensure dependencies point to OS.<arch>
+                runtimeNuspec = runtimeNuspec.Replace("<dependency id=\"TqkLibrary.FFmpeg.GplShared\"", $"<dependency id=\"TqkLibrary.FFmpeg.GplShared.{osName}.{arch}\"");
 
                 string gplSharedNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.GplShared.nuspec");
                 string runtimeNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.Runtime.nuspec");
@@ -137,17 +152,18 @@ namespace AutoPackager
                 File.WriteAllText(runtimeNuspecPath, runtimeNuspec);
 
                 // Generate README
-                string readmeContent = $"# TqkLibrary.FFmpeg.GplShared\n\n{Path.GetFileNameWithoutExtension(zipFile)}";
+                string readmeContent = $"# TqkLibrary.FFmpeg.GplShared\n\n{Path.GetFileNameWithoutExtension(archiveFile)}";
                 File.WriteAllText(Path.Combine(extractedBaseDir, "README.md"), readmeContent);
                 
                 // Write props and targets dynamically
-                string idShared = $"TqkLibrary.FFmpeg.GplShared.Window.{arch}";
-                string idRuntime = $"TqkLibrary.FFmpeg.Runtime.Window.{arch}";
+                string idShared = $"TqkLibrary.FFmpeg.GplShared.{osName}.{arch}";
+                string idRuntime = $"TqkLibrary.FFmpeg.Runtime.{osName}.{arch}";
 
                 string gplSharedProps = gplSharedPropsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
                 string gplSharedTargets = gplSharedTargetsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
                 
-                string gplSharedNativeTargets = gplSharedTargets.Replace("</Project>", @"
+                string nativeTargetTemplate = osName == "Win" 
+? @"
 	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'"">
 		<ClCompile>
 			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -157,7 +173,19 @@ namespace AutoPackager
 			<AdditionalDependencies>avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
 		</Link>
 	</ItemDefinitionGroup>
-</Project>");
+</Project>"
+: @"
+	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'"">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)" + osId + @"\" + arch + @"\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+		</Link>
+	</ItemDefinitionGroup>
+</Project>";
+
+                string gplSharedNativeTargets = gplSharedTargets.Replace("</Project>", nativeTargetTemplate);
 
                 string runtimeProps = runtimePropsTemplate.Replace("TqkLibrary.FFmpeg.Runtimes", idRuntime);
 
@@ -198,12 +226,16 @@ namespace AutoPackager
             }
 
             using var process = Process.Start(psi);
+            
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            
             process.WaitForExit();
 
             if (process.ExitCode != 0)
             {
-                var error = process.StandardError.ReadToEnd();
-                var output = process.StandardOutput.ReadToEnd();
+                var error = errorTask.Result;
+                var output = outputTask.Result;
                 Console.WriteLine($"Error running {exe} {args}:");
                 Console.WriteLine(error);
                 Console.WriteLine(output);
