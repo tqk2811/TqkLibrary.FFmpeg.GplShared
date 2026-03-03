@@ -49,8 +49,9 @@ namespace AutoPackager
 
             // Regex ex: ffmpeg-n4.4.6-86-g810c930d7a-win64-gpl-shared-4.4.zip
             // group 1: 4.4.6
-            // group 2: win64
-            var regex = new Regex(@"ffmpeg-n([\d\.]+).*-(win32|win64|winarm64)-gpl-shared-[^\s]+\.zip", RegexOptions.IgnoreCase);
+            // group 2: 86
+            // group 3: win64
+            var regex = new Regex(@"ffmpeg-n([\d\.]+)-(\d+)-.*-(win32|win64|winarm64|linuxarm64|linux64|mac64)-gpl-shared-[^\s]+\.(zip|tar\.xz)", RegexOptions.IgnoreCase);
 
             string gplSharedNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.nuspec"));
             string runtimeNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Runtime.nuspec"));
@@ -74,8 +75,11 @@ namespace AutoPackager
                     continue;
                 }
 
-                string version = match.Groups[1].Value;
-                string winArch = match.Groups[2].Value; // win32, win64, winarm64
+                string baseVersion = match.Groups[1].Value;
+                string buildVersion = match.Groups[2].Value; // e.g., 86
+                string winArch = match.Groups[3].Value; // win32, win64, winarm64
+
+                string version = $"{baseVersion}.{buildVersion}";
 
                 string arch = winArch switch
                 {
@@ -110,7 +114,7 @@ namespace AutoPackager
                 string gplSharedNuspec = gplSharedNuspecTemplate
                     .Replace("<id>TqkLibrary.FFmpeg.GplShared</id>", $"<id>TqkLibrary.FFmpeg.GplShared.Window.{arch}</id>")
                     .Replace("$version$", version)
-                    .Replace("$os$", "Window")
+                    .Replace("$os$", "win")
                     .Replace("$arch$", arch)
                     .Replace("$basePath$", relativeBaseDir);
 
@@ -119,7 +123,7 @@ namespace AutoPackager
                     .Replace("<id>TqkLibrary.FFmpeg.Runtimes</id>", $"<id>TqkLibrary.FFmpeg.Runtime.Window.{arch}</id>")
                     .Replace("[$version$,$version$]", $"[{version},{version}]")
                     .Replace("$version$", version)
-                    .Replace("$os$", "Window")
+                    .Replace("$os$", "win")
                     .Replace("$arch$", arch)
                     .Replace("$path$", $@"{relativeBaseDir}\bin");
                 
@@ -149,7 +153,7 @@ namespace AutoPackager
 			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ClCompile>
 		<Link>
-			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)Window\" + arch + @"\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)win\" + arch + @"\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
 			<AdditionalDependencies>avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
 		</Link>
 	</ItemDefinitionGroup>
