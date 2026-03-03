@@ -17,7 +17,6 @@ namespace AutoPackager
             string artifactsDir = Path.Combine(rootDir, "FFmpegBuildSubmodule", "FFmpeg-Builds", "artifacts");
             string packagesDir = Path.Combine(rootDir, "Packages");
             string tempDir = Path.Combine(rootDir, "TempOutput");
-            string nugetExe = Path.Combine(rootDir, "nuget.exe");
 
             if (!Directory.Exists(artifactsDir))
             {
@@ -26,19 +25,6 @@ namespace AutoPackager
             }
 
             Directory.CreateDirectory(packagesDir);
-
-            if (!File.Exists(nugetExe))
-            {
-                Console.WriteLine("nuget.exe not found. Downloading...");
-                using (var client = new HttpClient())
-                {
-                    var response = await client.GetAsync("https://dist.nuget.org/win-x86-commandline/latest/nuget.exe");
-                    response.EnsureSuccessStatusCode();
-                    await using var fs = new FileStream(nugetExe, FileMode.Create, FileAccess.Write, FileShare.None);
-                    await response.Content.CopyToAsync(fs);
-                }
-                Console.WriteLine("nuget.exe downloaded.");
-            }
 
             var archiveFiles = Directory.EnumerateFiles(artifactsDir, "*.*").Where(s => s.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || s.EndsWith(".tar.xz", StringComparison.OrdinalIgnoreCase)).ToArray();
             if (archiveFiles.Length == 0)
@@ -225,10 +211,10 @@ namespace AutoPackager
                 File.WriteAllText(Path.Combine(extractedBaseDir, $"{idRuntime}.props"), runtimeProps);
 
                 Console.WriteLine("Packing GplShared...");
-                RunCommand(nugetExe, $"pack \"{gplSharedNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
+                RunCommand("nuget", $"pack \"{gplSharedNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
 
                 Console.WriteLine("Packing Runtime...");
-                RunCommand(nugetExe, $"pack \"{runtimeNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
+                RunCommand("nuget", $"pack \"{runtimeNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
                 
                 Console.WriteLine($"Done {version} {arch}.");
             }
