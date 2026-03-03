@@ -10,6 +10,7 @@
 		<projectUrl>https://github.com/tqk2811/TqkLibrary.FFmpeg.GplShared</projectUrl>
 		<repository type="git" url="https://github.com/tqk2811/TqkLibrary.FFmpeg.GplShared.git"/>
 		<license type="expression">MIT</license>
+		<tags>native ffmpeg</tags>
 		<dependencies>
 			<dependency id="TqkLibrary.FFmpeg.GplShared" version="[$version$,$version$]"/>
 		</dependencies>
@@ -20,7 +21,7 @@
 
 	<files>
 		<file src="README.md" target="docs\" />
-		<file src="TqkLibrary.FFmpeg.Runtime.props" target="build\" />
+		<file src="TqkLibrary.FFmpeg.Runtime.Window.$arch$.props" target="build\" />
 
 		<file src="$path$\ffmpeg*" target="runtimes\$os$-$arch$\native\" />
 		<file src="$path$\ffplay*" target="runtimes\$os$-$arch$\native\" />

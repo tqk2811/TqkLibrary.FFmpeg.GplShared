@@ -55,6 +55,10 @@ namespace AutoPackager
             string gplSharedNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.nuspec"));
             string runtimeNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Runtime.nuspec"));
             
+            string gplSharedPropsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.props"));
+            string gplSharedTargetsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.targets"));
+            string runtimePropsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Runtime.props"));
+            
             // Clean temp
             if (Directory.Exists(tempDir))
             {
@@ -128,11 +132,35 @@ namespace AutoPackager
                 File.WriteAllText(gplSharedNuspecPath, gplSharedNuspec);
                 File.WriteAllText(runtimeNuspecPath, runtimeNuspec);
 
-                // Copy README and props to the extracted directory so they can be found by nuget without changing the base path
+                // Generate README
                 string readmeContent = $"# TqkLibrary.FFmpeg.GplShared\n\n{Path.GetFileNameWithoutExtension(zipFile)}";
                 File.WriteAllText(Path.Combine(extractedBaseDir, "README.md"), readmeContent);
-                File.Copy(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.props"), Path.Combine(extractedBaseDir, "TqkLibrary.FFmpeg.GplShared.props"), true);
-                File.Copy(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Runtime.props"), Path.Combine(extractedBaseDir, "TqkLibrary.FFmpeg.Runtime.props"), true);
+                
+                // Write props and targets dynamically
+                string idShared = $"TqkLibrary.FFmpeg.GplShared.Window.{arch}";
+                string idRuntime = $"TqkLibrary.FFmpeg.Runtime.Window.{arch}";
+
+                string gplSharedProps = gplSharedPropsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
+                string gplSharedTargets = gplSharedTargetsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
+                
+                string gplSharedNativeTargets = gplSharedTargets.Replace("</Project>", @"
+	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'"">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
+		<Link>
+			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)Window\" + arch + @"\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalDependencies>avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+</Project>");
+
+                string runtimeProps = runtimePropsTemplate.Replace("TqkLibrary.FFmpeg.Runtimes", idRuntime);
+
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.props"), gplSharedProps);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.targets"), gplSharedTargets);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.native.targets"), gplSharedNativeTargets);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idRuntime}.props"), runtimeProps);
 
                 Console.WriteLine("Packing GplShared...");
                 RunCommand(nugetExe, $"pack \"{gplSharedNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");

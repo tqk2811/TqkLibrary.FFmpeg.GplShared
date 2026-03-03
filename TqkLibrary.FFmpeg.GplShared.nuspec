@@ -9,15 +9,21 @@
 		<readme>docs\README.md</readme>
 		<projectUrl>https://github.com/tqk2811/TqkLibrary.FFmpeg.GplShared</projectUrl>
 		<repository type="git" url="https://github.com/tqk2811/TqkLibrary.FFmpeg.GplShared.git"/>
-		<license type="expression">MIT</license>		
+		<license type="expression">MIT</license>
+		<tags>native</tags>
 		<contentFiles>
 			<files include="**/*.*" copyToOutput="true" buildAction="None"/>
 		</contentFiles>
 	</metadata>
 
 	<files>
-		<file src="README.md" target="docs/" />
-		<file src="TqkLibrary.FFmpeg.GplShared.props" target="build/" />
+		<file src="README.md" target="docs\" />
+		
+		<file src="TqkLibrary.FFmpeg.GplShared.Window.$arch$.props" target="build\" />
+		<file src="TqkLibrary.FFmpeg.GplShared.Window.$arch$.targets" target="build\" />
+
+		<file src="TqkLibrary.FFmpeg.GplShared.Window.$arch$.props" target="build\native\" />
+		<file src="TqkLibrary.FFmpeg.GplShared.Window.$arch$.native.targets" target="build\native\TqkLibrary.FFmpeg.GplShared.Window.$arch$.targets" />
 
 		<file src="$basePath$\bin\*.dll" target="runtimes\$os$-$arch$\native\" />
 		<file src="$basePath$\lib\*.lib" target="build\native\$os$\$arch$\lib\" />
