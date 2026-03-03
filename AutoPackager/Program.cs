@@ -234,11 +234,6 @@ namespace AutoPackager
             }
 
             Console.WriteLine("All packages generated successfully.");
-
-            // Commit to git
-            Console.WriteLine("Committing changes to git...");
-            RunCommand("git", "add .", rootDir);
-            RunCommand("git", "commit -m \"Auto-generated packager and modified nuspec process\"", rootDir);
         }
 
         static void RunCommand(string exe, string args, string workingDir = null, bool ignoreErrors = false)
