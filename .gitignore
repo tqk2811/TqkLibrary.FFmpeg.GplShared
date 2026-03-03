@@ -1,1 +1,10 @@
 Release/
+Packages/
+TempOutput/
+testExtract/
+bin
+obj
+test.zip
+nuget.exe
+*.txt
+*.log
