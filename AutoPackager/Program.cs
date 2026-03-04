@@ -206,7 +206,7 @@ namespace AutoPackager
 		<ItemGroup>
 			<_{safeIdNative}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
 		</ItemGroup>
-		<Copy SourceFiles=""@(_{safeIdNative}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
+		<Copy SourceFiles=""@(_{safeIdNative}_NativeFiles)"" DestinationFolder=""$(OutDir){runtimesRelPath.Replace('/', '\\')}\"" SkipUnchangedFiles=""true"" />
 	</Target>
 </Project>";
 
@@ -255,7 +255,7 @@ namespace AutoPackager
 		<ItemGroup>
 			<_{safeIdTools}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
 		</ItemGroup>
-		<Copy SourceFiles=""@(_{safeIdTools}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
+		<Copy SourceFiles=""@(_{safeIdTools}_NativeFiles)"" DestinationFolder=""$(OutDir){runtimesRelPath.Replace('/', '\\')}\"" SkipUnchangedFiles=""true"" />
 	</Target>
 </Project>";
 
