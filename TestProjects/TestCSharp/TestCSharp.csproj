@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net472</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <!-- Explicitly declaring RIDs for .NET 8 -->
+    <RuntimeIdentifiers>win-x64;win-x86;win-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <!-- .NET 8 (SDK natively supports multiple runtimes without conditionals!) -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x86" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.arm64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Linux.x64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Linux.arm64" Version="*" />
+  </ItemGroup>
+
+  <!-- .NET Framework 4.7.2 (Fallback to conditions for custom MSBuild targets) -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' And '$(RuntimeIdentifier)' == 'win-x64'">
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x64" Version="*" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' And '$(RuntimeIdentifier)' == 'win-x86'">
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x86" Version="*" />
+  </ItemGroup>
+
+</Project>
