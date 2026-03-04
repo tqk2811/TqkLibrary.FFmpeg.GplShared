@@ -84,8 +84,58 @@ function Test-PublishOutput {
     return $allFound
 }
 
+function Test-CppVcxproj {
+    param(
+        [string]$Name,
+        [string]$ProjectDir,
+        [string]$Platform,
+        [bool]$Build
+    )
+    
+    Write-Host "=== $Name ===" -ForegroundColor Yellow
+    
+    if (-not $msbuild) {
+        Write-Host "  SKIP: MSBuild not found" -ForegroundColor DarkYellow
+        return "SKIP"
+    }
+    
+    $proj = Get-ChildItem $ProjectDir -Filter '*.vcxproj' | Select-Object -First 1
+    
+    Remove-Item -Recurse -Force (Join-Path $ProjectDir $Platform), (Join-Path $ProjectDir "Debug"), (Join-Path $ProjectDir "obj") -ErrorAction SilentlyContinue
+    
+    Write-Host "  Restoring ($Platform)..."
+    $restoreOut = & $msbuild.FullName $proj.FullName /t:Restore /p:Platform=$Platform /p:RestoreNoCache=true /v:minimal 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  FAIL: restore" -ForegroundColor Red
+        $restoreOut | ForEach-Object { Write-Host "    $_" }
+        return "FAIL"
+    }
+    
+    if ($Build) {
+        Write-Host "  Building ($Platform)..."
+        $buildOutput = & $msbuild.FullName $proj.FullName /t:Build /p:Configuration=Debug /p:Platform=$Platform /v:minimal 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $err = $buildOutput | Out-String
+            if ($err -match "MSB8020") {
+                Write-Host "  SKIP: Build tools for $Platform not installed (MSB8020)" -ForegroundColor DarkYellow
+                return "SKIP (Missing Toolset)"
+            } else {
+                Write-Host "  FAIL: build" -ForegroundColor Red
+                $buildOutput | ForEach-Object { Write-Host "    $_" }
+                return "FAIL"
+            }
+        } else {
+            Write-Host "  PASS: Compiled and linked" -ForegroundColor Green
+            return "PASS"
+        }
+    } else {
+        Write-Host "  PASS: Restored successfully" -ForegroundColor Green
+        return "PASS (Restore Only)"
+    }
+}
+
 # ============================================
-# Test 1: C# SDK win-x64 (build + run)
+# C# SDK Tests
 # ============================================
 Write-Host "=== Test 1: C# SDK win-x64 (build + run) ===" -ForegroundColor Yellow
 $sdkDir = Join-Path $testDir "TestCSharpSdk"
@@ -114,32 +164,17 @@ else {
 }
 Write-Host ""
 
-# ============================================
-# Test 2: C# SDK win-arm64 (publish only)
-# ============================================
-$r = Test-PublishOutput "Test 2: C# SDK win-arm64 (publish)" `
-    (Join-Path $testDir "TestCSharpSdk.Win.arm64") "win-arm64" `
-    @("avcodec-62.dll","avdevice-62.dll","avfilter-11.dll","avformat-62.dll","avutil-60.dll","swresample-6.dll","swscale-9.dll","ffmpeg.exe","ffplay.exe","ffprobe.exe")
-if (-not $r) { $allPassed = $false; $results += "FAIL: C# SDK win-arm64" } else { $results += "PASS: C# SDK win-arm64" }
+$r2 = Test-PublishOutput "Test 2: C# SDK win-arm64 (publish)" (Join-Path $testDir "TestCSharpSdk.Win.arm64") "win-arm64" @("avcodec-62.dll","avdevice-62.dll","avfilter-11.dll","avformat-62.dll","avutil-60.dll","swresample-6.dll","swscale-9.dll","ffmpeg.exe","ffplay.exe","ffprobe.exe")
+if (-not $r2) { $allPassed = $false; $results += "FAIL: C# SDK win-arm64" } else { $results += "PASS: C# SDK win-arm64" }
+
+$r3 = Test-PublishOutput "Test 3: C# SDK linux-x64 (publish)" (Join-Path $testDir "TestCSharpSdk.Linux.x64") "linux-x64" @("libavcodec.so.62.11.100","libavdevice.so.62.1.100","libavfilter.so.11.4.100","libavformat.so.62.3.100","libavutil.so.60.8.100","libswresample.so.6.1.100","libswscale.so.9.1.100","ffmpeg","ffplay","ffprobe")
+if (-not $r3) { $allPassed = $false; $results += "FAIL: C# SDK linux-x64" } else { $results += "PASS: C# SDK linux-x64" }
+
+$r4 = Test-PublishOutput "Test 4: C# SDK linux-arm64 (publish)" (Join-Path $testDir "TestCSharpSdk.Linux.arm64") "linux-arm64" @("libavcodec.so.62.11.100","libavdevice.so.62.1.100","libavfilter.so.11.4.100","libavformat.so.62.3.100","libavutil.so.60.8.100","libswresample.so.6.1.100","libswscale.so.9.1.100","ffmpeg","ffplay","ffprobe")
+if (-not $r4) { $allPassed = $false; $results += "FAIL: C# SDK linux-arm64" } else { $results += "PASS: C# SDK linux-arm64" }
 
 # ============================================
-# Test 3: C# SDK linux-x64 (publish only)
-# ============================================
-$r = Test-PublishOutput "Test 3: C# SDK linux-x64 (publish)" `
-    (Join-Path $testDir "TestCSharpSdk.Linux.x64") "linux-x64" `
-    @("libavcodec.so.62.11.100","libavdevice.so.62.1.100","libavfilter.so.11.4.100","libavformat.so.62.3.100","libavutil.so.60.8.100","libswresample.so.6.1.100","libswscale.so.9.1.100","ffmpeg","ffplay","ffprobe")
-if (-not $r) { $allPassed = $false; $results += "FAIL: C# SDK linux-x64" } else { $results += "PASS: C# SDK linux-x64" }
-
-# ============================================
-# Test 4: C# SDK linux-arm64 (publish only)
-# ============================================
-$r = Test-PublishOutput "Test 4: C# SDK linux-arm64 (publish)" `
-    (Join-Path $testDir "TestCSharpSdk.Linux.arm64") "linux-arm64" `
-    @("libavcodec.so.62.11.100","libavdevice.so.62.1.100","libavfilter.so.11.4.100","libavformat.so.62.3.100","libavutil.so.60.8.100","libswresample.so.6.1.100","libswscale.so.9.1.100","ffmpeg","ffplay","ffprobe")
-if (-not $r) { $allPassed = $false; $results += "FAIL: C# SDK linux-arm64" } else { $results += "PASS: C# SDK linux-arm64" }
-
-# ============================================
-# Test 5: C# .NET Framework (build + run)
+# C# .NET Framework Test
 # ============================================
 Write-Host "=== Test 5: C# .NET Framework 4.7.2 (build + run) ===" -ForegroundColor Yellow
 $fwDir = Join-Path $testDir "TestCSharpFramework"
@@ -172,34 +207,33 @@ if (-not $msbuild) {
 Write-Host ""
 
 # ============================================
-# Test 6: C++ vcxproj win-x64 (build)
+# C++ Tests
 # ============================================
-Write-Host "=== Test 6: C++ vcxproj win-x64 (build) ===" -ForegroundColor Yellow
-$cppDir = Join-Path $testDir "TestCpp"
-
-if (-not $msbuild) {
-    Write-Host "  SKIP: MSBuild not found" -ForegroundColor DarkYellow
-    $results += "SKIP: C++ win-x64"
-} else {
-    Remove-Item -Recurse -Force (Join-Path $cppDir "x64"), (Join-Path $cppDir "Debug"), (Join-Path $cppDir "obj") -ErrorAction SilentlyContinue
-    Write-Host "  Restoring..."
-    & $msbuild.FullName "$cppDir\TestCpp.vcxproj" /t:Restore /p:Platform=x64 /p:RestoreNoCache=true /v:minimal 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  FAIL: restore" -ForegroundColor Red; $allPassed = $false; $results += "FAIL: C++ win-x64"
-    } else {
-        Write-Host "  Building..."
-        $buildOutput = & $msbuild.FullName "$cppDir\TestCpp.vcxproj" /t:Build /p:Configuration=Debug /p:Platform=x64 /v:minimal 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "  FAIL: build" -ForegroundColor Red
-            $buildOutput | ForEach-Object { Write-Host "    $_" }
-            $allPassed = $false; $results += "FAIL: C++ win-x64"
-        } else {
-            Write-Host "  PASS: Compiled and linked" -ForegroundColor Green
-            $results += "PASS: C++ win-x64"
-        }
-    }
-}
+$rc = Test-CppVcxproj "Test 6: C++ vcxproj win-x64 (build)" (Join-Path $testDir "TestCpp") "x64" $true
+if ($rc -eq "FAIL") { $allPassed = $false }
+$results += "C++ win-x64 : $rc"
 Write-Host ""
+
+$rc = Test-CppVcxproj "Test 7: C++ vcxproj win-x86 (build)" (Join-Path $testDir "TestCpp.Win.x86") "Win32" $true
+if ($rc -eq "FAIL") { $allPassed = $false }
+$results += "C++ win-x86 : $rc"
+Write-Host ""
+
+$rc = Test-CppVcxproj "Test 8: C++ vcxproj win-arm64 (build)" (Join-Path $testDir "TestCpp.Win.arm64") "ARM64" $true
+if ($rc -eq "FAIL") { $allPassed = $false }
+$results += "C++ win-arm64 : $rc"
+Write-Host ""
+
+$rc = Test-CppVcxproj "Test 9: C++ vcxproj linux-x64 (restore)" (Join-Path $testDir "TestCpp.Linux.x64") "x64" $false
+if ($rc -eq "FAIL") { $allPassed = $false }
+$results += "C++ linux-x64 : $rc"
+Write-Host ""
+
+$rc = Test-CppVcxproj "Test 10: C++ vcxproj linux-arm64 (restore)" (Join-Path $testDir "TestCpp.Linux.arm64") "ARM64" $false
+if ($rc -eq "FAIL") { $allPassed = $false }
+$results += "C++ linux-arm64 : $rc"
+Write-Host ""
+
 
 # ============================================
 # Summary
@@ -208,8 +242,8 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host " RESULTS" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 foreach ($r in $results) {
-    if ($r -match "^PASS") { Write-Host "  $r" -ForegroundColor Green }
-    elseif ($r -match "^FAIL") { Write-Host "  $r" -ForegroundColor Red }
+    if ($r -match "PASS") { Write-Host "  $r" -ForegroundColor Green }
+    elseif ($r -match "FAIL") { Write-Host "  $r" -ForegroundColor Red }
     else { Write-Host "  $r" -ForegroundColor DarkYellow }
 }
 Write-Host ""
@@ -219,4 +253,3 @@ if ($allPassed) {
     Write-Host " SOME TESTS FAILED" -ForegroundColor Red
 }
 Write-Host "========================================" -ForegroundColor Cyan
-
