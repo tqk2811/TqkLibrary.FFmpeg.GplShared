@@ -115,7 +115,8 @@ function Test-CppVcxproj {
     
     if ($Build) {
         Write-Host "  Building ($Platform)..."
-        $buildArgs = @("/t:Build", "/p:Configuration=Debug") + $argsBuilder
+        $target = if ($AppType -eq "Linux") { "/t:ClCompile" } else { "/t:Build" }
+        $buildArgs = @($target, "/p:Configuration=Debug") + $argsBuilder
         $buildOutput = & $msbuild.FullName $proj.FullName $buildArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
             $err = $buildOutput | Out-String
@@ -185,8 +186,8 @@ $cppTests = @(
     @{ Name="C++ win-x64"; Platform="x64"; AppType=""; Build=$true },
     @{ Name="C++ win-x86"; Platform="Win32"; AppType=""; Build=$true },
     @{ Name="C++ win-arm64"; Platform="ARM64"; AppType=""; Build=$true },
-    @{ Name="C++ linux-x64"; Platform="x64"; AppType="Linux"; Build=$false },
-    @{ Name="C++ linux-arm64"; Platform="ARM64"; AppType="Linux"; Build=$false }
+    @{ Name="C++ linux-x64"; Platform="x64"; AppType="Linux"; Build=$true },
+    @{ Name="C++ linux-arm64"; Platform="ARM64"; AppType="Linux"; Build=$true }
 )
 
 foreach ($t in $cppTests) {

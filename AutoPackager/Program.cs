@@ -185,9 +185,9 @@ namespace AutoPackager
 
                 string osCondition = osName switch
                 {
-                    "Win" => " And '$(OS)' == 'Windows_NT'",
-                    "Linux" => " And '$(OS)' == 'Unix'",
-                    "Mac" => " And '$(OS)' == 'OSX'",
+                    "Win" => " And ('$(OS)' == 'Windows_NT' And '$(ApplicationType)' == '')",
+                    "Linux" => " And ('$(OS)' == 'Unix' Or '$(ApplicationType)' == 'Linux')",
+                    "Mac" => " And ('$(OS)' == 'OSX' Or '$(ApplicationType)' == 'Mac')",
                     _ => ""
                 };
 
@@ -213,7 +213,7 @@ namespace AutoPackager
                 // Native targets for C++ projects (include/lib linking)
                 string nativeTargetTemplate = osName == "Win" 
 ? @"
-	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'" + finalCondition + @""">
+	<ItemDefinitionGroup Condition=""('$(Language)' == 'C++' Or '$(Language)' == '')" + finalCondition + @""">
 		<ClCompile>
 			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ClCompile>
@@ -224,13 +224,21 @@ namespace AutoPackager
 	</ItemDefinitionGroup>
 </Project>"
 : @"
-	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'" + finalCondition + @""">
+	<ItemDefinitionGroup Condition=""('$(Language)' == 'C++' Or '$(Language)' == '')" + finalCondition + @""">
 		<ClCompile>
 			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ClCompile>
 		<Link>
 			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)" + osId + @"/" + arch + @"/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<LibraryDependencies>avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;%(LibraryDependencies)</LibraryDependencies>
 		</Link>
+	</ItemDefinitionGroup>
+	
+	<!-- Fallback for Mock Build on Windows where ApplicationType=Linux is passed but MSBuild still uses CL.exe -->
+	<ItemDefinitionGroup Condition=""'$(OS)' == 'Windows_NT' And '$(ApplicationType)' == 'Linux'" + platformCondition + @""">
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+		</ClCompile>
 	</ItemDefinitionGroup>
 </Project>";
 
