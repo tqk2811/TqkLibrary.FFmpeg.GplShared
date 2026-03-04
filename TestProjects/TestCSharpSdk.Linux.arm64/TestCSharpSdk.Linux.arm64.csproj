@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RuntimeIdentifier>linux-arm64</RuntimeIdentifier>
+    <Platform>arm64</Platform>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TqkLibrary.FFmpeg.GplShared.Linux.arm64" Version="8.0.1.49" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Runtime.Linux.arm64" Version="8.0.1.49" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\SharedProgram.cs" Link="Program.cs" />
+  </ItemGroup>
+
+</Project>

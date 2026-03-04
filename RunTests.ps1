@@ -1,6 +1,6 @@
 # RunTests.ps1 - Test NuGet packages locally
 # Usage: .\RunTests.ps1
-# Requires: dotnet SDK, MSBuild (Visual Studio)
+# Requires: dotnet SDK, MSBuild (Visual Studio) for Framework/C++ tests
 
 $ErrorActionPreference = "Stop"
 $rootDir = $PSScriptRoot
@@ -30,23 +30,74 @@ if (-not (Test-Path $packagesDir) -or (Get-ChildItem $packagesDir -Filter '*.nup
 }
 
 $allPassed = $true
+$results = @()
+
+function Test-PublishOutput {
+    param(
+        [string]$Name,
+        [string]$ProjectDir,
+        [string]$Rid,
+        [string[]]$ExpectedFiles
+    )
+
+    Write-Host "=== $Name ===" -ForegroundColor Yellow
+    $proj = Get-ChildItem $ProjectDir -Filter '*.csproj' | Select-Object -First 1
+
+    # Clean
+    Remove-Item -Recurse -Force (Join-Path $ProjectDir "bin"), (Join-Path $ProjectDir "obj") -ErrorAction SilentlyContinue
+
+    Write-Host "  Restoring (--no-cache)..."
+    $restoreOut = dotnet restore --no-cache $proj.FullName 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  FAIL: restore" -ForegroundColor Red
+        $restoreOut | ForEach-Object { Write-Host "    $_" }
+        return $false
+    }
+
+    Write-Host "  Publishing ($Rid)..."
+    $pubDir = Join-Path $ProjectDir "bin\publish"
+    $pubOut = dotnet publish --no-restore $proj.FullName -c Release -o $pubDir 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  FAIL: publish" -ForegroundColor Red
+        $pubOut | ForEach-Object { Write-Host "    $_" }
+        return $false
+    }
+
+    # Check expected files
+    $allFound = $true
+    foreach ($f in $ExpectedFiles) {
+        $path = Join-Path $pubDir $f
+        if (Test-Path $path) {
+            Write-Host "  OK: $f" -ForegroundColor Green
+        } else {
+            Write-Host "  MISSING: $f" -ForegroundColor Red
+            $allFound = $false
+        }
+    }
+
+    if ($allFound) {
+        Write-Host "  PASS" -ForegroundColor Green
+    } else {
+        Write-Host "  FAIL: some files missing" -ForegroundColor Red
+    }
+    Write-Host ""
+    return $allFound
+}
 
 # ============================================
-# Test 1: C# SDK-style project
+# Test 1: C# SDK win-x64 (build + run)
 # ============================================
-Write-Host "=== Test 1: C# SDK (.NET 8, win-x64) ===" -ForegroundColor Yellow
+Write-Host "=== Test 1: C# SDK win-x64 (build + run) ===" -ForegroundColor Yellow
 $sdkDir = Join-Path $testDir "TestCSharpSdk"
-
-# Clean
 Remove-Item -Recurse -Force (Join-Path $sdkDir "bin"), (Join-Path $sdkDir "obj") -ErrorAction SilentlyContinue
 
-Write-Host "  Restoring..."
+Write-Host "  Restoring (--no-cache)..."
 dotnet restore --no-cache $sdkDir 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { Write-Host "  FAIL: restore" -ForegroundColor Red; $allPassed = $false } 
+if ($LASTEXITCODE -ne 0) { Write-Host "  FAIL: restore" -ForegroundColor Red; $allPassed = $false; $results += "FAIL: C# SDK win-x64" }
 else {
     Write-Host "  Building..."
     dotnet build --no-restore $sdkDir -c Debug 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { Write-Host "  FAIL: build" -ForegroundColor Red; $allPassed = $false }
+    if ($LASTEXITCODE -ne 0) { Write-Host "  FAIL: build" -ForegroundColor Red; $allPassed = $false; $results += "FAIL: C# SDK win-x64" }
     else {
         Write-Host "  Running..."
         $output = dotnet run --no-build --project $sdkDir -c Debug 2>&1
@@ -54,72 +105,97 @@ else {
         if ($missing) {
             Write-Host "  FAIL: missing native files" -ForegroundColor Red
             $output | ForEach-Object { Write-Host "    $_" }
-            $allPassed = $false
+            $allPassed = $false; $results += "FAIL: C# SDK win-x64"
         } else {
-            Write-Host "  PASS: All native files present" -ForegroundColor Green
+            Write-Host "  PASS" -ForegroundColor Green
+            $results += "PASS: C# SDK win-x64"
         }
     }
 }
 Write-Host ""
 
 # ============================================
-# Test 2: C# .NET Framework project
+# Test 2: C# SDK win-arm64 (publish only)
 # ============================================
-Write-Host "=== Test 2: C# .NET Framework (4.7.2, x64) ===" -ForegroundColor Yellow
+$r = Test-PublishOutput "Test 2: C# SDK win-arm64 (publish)" `
+    (Join-Path $testDir "TestCSharpSdk.Win.arm64") "win-arm64" `
+    @("avcodec-62.dll","avdevice-62.dll","avfilter-11.dll","avformat-62.dll","avutil-60.dll","swresample-6.dll","swscale-9.dll","ffmpeg.exe","ffplay.exe","ffprobe.exe")
+if (-not $r) { $allPassed = $false; $results += "FAIL: C# SDK win-arm64" } else { $results += "PASS: C# SDK win-arm64" }
+
+# ============================================
+# Test 3: C# SDK linux-x64 (publish only)
+# ============================================
+$r = Test-PublishOutput "Test 3: C# SDK linux-x64 (publish)" `
+    (Join-Path $testDir "TestCSharpSdk.Linux.x64") "linux-x64" `
+    @("libavcodec.so.62.11.100","libavdevice.so.62.1.100","libavfilter.so.11.4.100","libavformat.so.62.3.100","libavutil.so.60.8.100","libswresample.so.6.1.100","libswscale.so.9.1.100","ffmpeg","ffplay","ffprobe")
+if (-not $r) { $allPassed = $false; $results += "FAIL: C# SDK linux-x64" } else { $results += "PASS: C# SDK linux-x64" }
+
+# ============================================
+# Test 4: C# SDK linux-arm64 (publish only)
+# ============================================
+$r = Test-PublishOutput "Test 4: C# SDK linux-arm64 (publish)" `
+    (Join-Path $testDir "TestCSharpSdk.Linux.arm64") "linux-arm64" `
+    @("libavcodec.so.62.11.100","libavdevice.so.62.1.100","libavfilter.so.11.4.100","libavformat.so.62.3.100","libavutil.so.60.8.100","libswresample.so.6.1.100","libswscale.so.9.1.100","ffmpeg","ffplay","ffprobe")
+if (-not $r) { $allPassed = $false; $results += "FAIL: C# SDK linux-arm64" } else { $results += "PASS: C# SDK linux-arm64" }
+
+# ============================================
+# Test 5: C# .NET Framework (build + run)
+# ============================================
+Write-Host "=== Test 5: C# .NET Framework 4.7.2 (build + run) ===" -ForegroundColor Yellow
 $fwDir = Join-Path $testDir "TestCSharpFramework"
 
 if (-not $msbuild) {
-    Write-Host "  SKIP: MSBuild not found (Visual Studio required)" -ForegroundColor DarkYellow
+    Write-Host "  SKIP: MSBuild not found" -ForegroundColor DarkYellow
+    $results += "SKIP: C# .NET Framework"
 } else {
-    # Clean
     Remove-Item -Recurse -Force (Join-Path $fwDir "bin"), (Join-Path $fwDir "obj") -ErrorAction SilentlyContinue
-
     Write-Host "  Building (MSBuild + restore)..."
     $buildOutput = & $msbuild.FullName "$fwDir\TestCSharpFramework.csproj" /t:Build /p:Configuration=Debug /p:Platform=x64 /restore /p:RestoreNoCache=true /v:minimal 2>&1
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  FAIL: build" -ForegroundColor Red
         $buildOutput | ForEach-Object { Write-Host "    $_" }
-        $allPassed = $false
+        $allPassed = $false; $results += "FAIL: C# .NET Framework"
     } else {
         Write-Host "  Running..."
         $output = & "$fwDir\bin\Debug\TestCSharpFramework.exe" 2>&1
         $missing = $output | Select-String "MISSING!"
         if ($missing) {
-            Write-Host "  FAIL: missing native files (.targets copy failed)" -ForegroundColor Red
+            Write-Host "  FAIL: missing native files" -ForegroundColor Red
             $output | ForEach-Object { Write-Host "    $_" }
-            $allPassed = $false
+            $allPassed = $false; $results += "FAIL: C# .NET Framework"
         } else {
-            Write-Host "  PASS: All native files copied via .targets" -ForegroundColor Green
+            Write-Host "  PASS" -ForegroundColor Green
+            $results += "PASS: C# .NET Framework"
         }
     }
 }
 Write-Host ""
 
 # ============================================
-# Test 3: C++ project
+# Test 6: C++ vcxproj win-x64 (build)
 # ============================================
-Write-Host "=== Test 3: C++ vcxproj (x64, MSVC) ===" -ForegroundColor Yellow
+Write-Host "=== Test 6: C++ vcxproj win-x64 (build) ===" -ForegroundColor Yellow
 $cppDir = Join-Path $testDir "TestCpp"
 
 if (-not $msbuild) {
-    Write-Host "  SKIP: MSBuild not found (Visual Studio required)" -ForegroundColor DarkYellow
+    Write-Host "  SKIP: MSBuild not found" -ForegroundColor DarkYellow
+    $results += "SKIP: C++ win-x64"
 } else {
-    # Clean
     Remove-Item -Recurse -Force (Join-Path $cppDir "x64"), (Join-Path $cppDir "Debug"), (Join-Path $cppDir "obj") -ErrorAction SilentlyContinue
-
     Write-Host "  Restoring..."
     & $msbuild.FullName "$cppDir\TestCpp.vcxproj" /t:Restore /p:Platform=x64 /p:RestoreNoCache=true /v:minimal 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { 
-        Write-Host "  FAIL: restore" -ForegroundColor Red; $allPassed = $false 
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  FAIL: restore" -ForegroundColor Red; $allPassed = $false; $results += "FAIL: C++ win-x64"
     } else {
         Write-Host "  Building..."
         $buildOutput = & $msbuild.FullName "$cppDir\TestCpp.vcxproj" /t:Build /p:Configuration=Debug /p:Platform=x64 /v:minimal 2>&1
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "  FAIL: build (headers/libs not found)" -ForegroundColor Red
+            Write-Host "  FAIL: build" -ForegroundColor Red
             $buildOutput | ForEach-Object { Write-Host "    $_" }
-            $allPassed = $false
+            $allPassed = $false; $results += "FAIL: C++ win-x64"
         } else {
-            Write-Host "  PASS: Compiled and linked successfully" -ForegroundColor Green
+            Write-Host "  PASS: Compiled and linked" -ForegroundColor Green
+            $results += "PASS: C++ win-x64"
         }
     }
 }
@@ -129,6 +205,14 @@ Write-Host ""
 # Summary
 # ============================================
 Write-Host "========================================" -ForegroundColor Cyan
+Write-Host " RESULTS" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+foreach ($r in $results) {
+    if ($r -match "^PASS") { Write-Host "  $r" -ForegroundColor Green }
+    elseif ($r -match "^FAIL") { Write-Host "  $r" -ForegroundColor Red }
+    else { Write-Host "  $r" -ForegroundColor DarkYellow }
+}
+Write-Host ""
 if ($allPassed) {
     Write-Host " ALL TESTS PASSED" -ForegroundColor Green
 } else {
