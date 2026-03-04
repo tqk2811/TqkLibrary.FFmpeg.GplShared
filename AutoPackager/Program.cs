@@ -175,17 +175,18 @@ namespace AutoPackager
 
                 string platformCondition = (arch, osName) switch
                 {
-                    ("x64", "Win") => " And ('$(Platform.ToLower())' == 'x64' Or '$(Platform.ToLower())' == 'win64')",
-                    ("x86", "Win") => " And ('$(Platform.ToLower())' == 'x86' Or '$(Platform.ToLower())' == 'win32')",
+                    ("x64", "Win") => " And ('$(Platform.ToLower())' == 'x64' Or '$(Platform.ToLower())' == 'win64' Or '$(PlatformTarget.ToLower())' == 'x64')",
+                    ("x86", "Win") => " And ('$(Platform.ToLower())' == 'x86' Or '$(Platform.ToLower())' == 'win32' Or '$(PlatformTarget.ToLower())' == 'x86')",
                     ("x64", _) => " And '$(Platform.ToLower())' == 'x64'",
                     ("x86", _) => " And '$(Platform.ToLower())' == 'x86'",
+                    ("arm64", "Win") => " And ('$(Platform.ToLower())' == 'arm64' Or '$(Platform.ToLower())' == 'winarm64' Or '$(PlatformTarget.ToLower())' == 'arm64')",
                     ("arm64", _) => " And '$(Platform.ToLower())' == 'arm64'",
                     _ => ""
                 };
 
                 string osCondition = osName switch
                 {
-                    "Win" => " And ('$(OS)' == 'Windows_NT' And '$(ApplicationType)' == '')",
+                    "Win" => " And ('$(OS)' == 'Windows_NT' And ('$(ApplicationType)' == '' Or '$(ApplicationType)' == 'Windows'))",
                     "Linux" => " And ('$(OS)' == 'Unix' Or '$(ApplicationType)' == 'Linux')",
                     "Mac" => " And ('$(OS)' == 'OSX' Or '$(ApplicationType)' == 'Mac')",
                     _ => ""
@@ -218,7 +219,7 @@ namespace AutoPackager
 			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ClCompile>
 		<Link>
-			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)win/" + arch + @"/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)win\" + arch + @"\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
 			<AdditionalDependencies>avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
 		</Link>
 	</ItemDefinitionGroup>
