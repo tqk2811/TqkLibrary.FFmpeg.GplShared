@@ -39,12 +39,12 @@ namespace AutoPackager
             // group 3: win64
             var regex = new Regex(@"ffmpeg-n([\d\.]+)-(\d+)-.*-(win32|win64|winarm64|linuxarm64|linux64|mac64)-gpl-shared-[^\s]+\.(zip|tar\.xz)", RegexOptions.IgnoreCase);
 
-            string gplSharedNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.nuspec"));
-            string runtimeNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Runtime.nuspec"));
+            string nativeNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Native.nuspec"));
+            string toolsNuspecTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Tools.nuspec"));
             
-            string gplSharedPropsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.props"));
-            string gplSharedTargetsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.GplShared.targets"));
-            string runtimePropsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Runtime.props"));
+            string nativePropsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Native.props"));
+            string nativeTargetsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Native.targets"));
+            string toolsPropsTemplate = File.ReadAllText(Path.Combine(rootDir, "TqkLibrary.FFmpeg.Tools.props"));
             
             // Clean temp
             if (Directory.Exists(tempDir))
@@ -139,41 +139,39 @@ namespace AutoPackager
                 
                 string relativeBaseDir = ".";
 
-                // GplShared nuspec
-                string gplSharedNuspec = gplSharedNuspecTemplate
-                    .Replace("<id>TqkLibrary.FFmpeg.GplShared</id>", $"<id>TqkLibrary.FFmpeg.GplShared.{osName}.{arch}</id>")
+                // Native nuspec
+                string nativeNuspec = nativeNuspecTemplate
+                    .Replace("<id>TqkLibrary.FFmpeg.Native</id>", $"<id>TqkLibrary.FFmpeg.Native.{osName}.{arch}</id>")
                     .Replace("$version$", version)
                     .Replace("$osName$", osName)
                     .Replace("$os$", osId)
                     .Replace("$arch$", arch)
                     .Replace("$basePath$", relativeBaseDir);
 
-                // Runtime nuspec
-                string runtimeNuspec = runtimeNuspecTemplate
-                    .Replace("<id>TqkLibrary.FFmpeg.Runtimes</id>", $"<id>TqkLibrary.FFmpeg.Runtime.{osName}.{arch}</id>")
+                // Tools nuspec
+                string toolsNuspec = toolsNuspecTemplate
+                    .Replace("<id>TqkLibrary.FFmpeg.Tools</id>", $"<id>TqkLibrary.FFmpeg.Tools.{osName}.{arch}</id>")
+                    .Replace("<dependency id=\"TqkLibrary.FFmpeg.Native\"", $"<dependency id=\"TqkLibrary.FFmpeg.Native.{osName}.{arch}\"")
                     .Replace("[$version$,$version$]", $"[{version},{version}]")
                     .Replace("$version$", version)
                     .Replace("$osName$", osName)
                     .Replace("$os$", osId)
                     .Replace("$arch$", arch)
                     .Replace("$path$", $@"{relativeBaseDir}\bin");
-                
-                // Ensure dependencies point to OS.<arch>
-                runtimeNuspec = runtimeNuspec.Replace("<dependency id=\"TqkLibrary.FFmpeg.GplShared\"", $"<dependency id=\"TqkLibrary.FFmpeg.GplShared.{osName}.{arch}\"");
 
-                string gplSharedNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.GplShared.nuspec");
-                string runtimeNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.Runtime.nuspec");
+                string nativeNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.Native.nuspec");
+                string toolsNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.Tools.nuspec");
 
-                File.WriteAllText(gplSharedNuspecPath, gplSharedNuspec);
-                File.WriteAllText(runtimeNuspecPath, runtimeNuspec);
+                File.WriteAllText(nativeNuspecPath, nativeNuspec);
+                File.WriteAllText(toolsNuspecPath, toolsNuspec);
 
                 // Generate README
-                string readmeContent = $"# TqkLibrary.FFmpeg.GplShared\n\n{Path.GetFileNameWithoutExtension(archiveFile)}";
+                string readmeContent = $"# TqkLibrary.FFmpeg.Native\n\n{Path.GetFileNameWithoutExtension(archiveFile)}";
                 File.WriteAllText(Path.Combine(extractedBaseDir, "README.md"), readmeContent);
                 
                 // Write props and targets dynamically
-                string idShared = $"TqkLibrary.FFmpeg.GplShared.{osName}.{arch}";
-                string idRuntime = $"TqkLibrary.FFmpeg.Runtime.{osName}.{arch}";
+                string idNative = $"TqkLibrary.FFmpeg.Native.{osName}.{arch}";
+                string idTools = $"TqkLibrary.FFmpeg.Tools.{osName}.{arch}";
 
                 string platformCondition = (arch, osName) switch
                 {
@@ -195,20 +193,20 @@ namespace AutoPackager
 
                 string finalCondition = platformCondition + osCondition;
 
-                string gplSharedProps = gplSharedPropsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
+                string nativeProps = nativePropsTemplate.Replace("TqkLibrary.FFmpeg.Native", idNative);
                 
                 string runtimesRelPath = $"runtimes/{osId}-{arch}/native";
-                string safeIdShared = idShared.Replace(".", "_");
-                string safeIdRuntime = idRuntime.Replace(".", "_");
+                string safeIdNative = idNative.Replace(".", "_");
+                string safeIdTools = idTools.Replace(".", "_");
                 
-                // GplShared targets for managed projects (with .NET Framework copy support)
-                string gplSharedTargets = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+                // Native targets for managed projects (with .NET Framework copy support)
+                string nativeTargets = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <Project ToolsVersion=""4.0"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<Target Name=""CopyNativeLibs_{safeIdShared}"" AfterTargets=""Build"" Condition=""'$(UsingMicrosoftNETSdk)' != 'true'"">
+	<Target Name=""CopyNativeLibs_{safeIdNative}"" AfterTargets=""Build"" Condition=""'$(UsingMicrosoftNETSdk)' != 'true'"">
 		<ItemGroup>
-			<_{safeIdShared}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
+			<_{safeIdNative}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
 		</ItemGroup>
-		<Copy SourceFiles=""@(_{safeIdShared}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
+		<Copy SourceFiles=""@(_{safeIdNative}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
 	</Target>
 </Project>";
 
@@ -237,33 +235,33 @@ namespace AutoPackager
 </Project>";
 
                 // Build native targets from base template + C++ config  
-                string gplSharedNativeTargetsBase = gplSharedTargetsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
-                string gplSharedNativeTargets = gplSharedNativeTargetsBase.Replace("</Project>", nativeTargetTemplate);
+                string nativeCppTargetsBase = nativeTargetsTemplate.Replace("TqkLibrary.FFmpeg.Native", idNative);
+                string nativeCppTargets = nativeCppTargetsBase.Replace("</Project>", nativeTargetTemplate);
 
-                string runtimeProps = runtimePropsTemplate.Replace("TqkLibrary.FFmpeg.Runtimes", idRuntime);
+                string toolsProps = toolsPropsTemplate.Replace("TqkLibrary.FFmpeg.Tools", idTools);
                 
-                // Runtime targets for managed projects (with .NET Framework copy support)
-                string runtimeTargets = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+                // Tools targets for managed projects (with .NET Framework copy support)
+                string toolsTargets = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <Project ToolsVersion=""4.0"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<Target Name=""CopyNativeLibs_{safeIdRuntime}"" AfterTargets=""Build"" Condition=""'$(UsingMicrosoftNETSdk)' != 'true'"">
+	<Target Name=""CopyNativeLibs_{safeIdTools}"" AfterTargets=""Build"" Condition=""'$(UsingMicrosoftNETSdk)' != 'true'"">
 		<ItemGroup>
-			<_{safeIdRuntime}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
+			<_{safeIdTools}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
 		</ItemGroup>
-		<Copy SourceFiles=""@(_{safeIdRuntime}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
+		<Copy SourceFiles=""@(_{safeIdTools}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
 	</Target>
 </Project>";
 
-                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.props"), gplSharedProps);
-                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.targets"), gplSharedTargets);
-                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.native.targets"), gplSharedNativeTargets);
-                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idRuntime}.props"), runtimeProps);
-                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idRuntime}.targets"), runtimeTargets);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idNative}.props"), nativeProps);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idNative}.targets"), nativeTargets);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idNative}.native.targets"), nativeCppTargets);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idTools}.props"), toolsProps);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idTools}.targets"), toolsTargets);
 
-                Console.WriteLine("Packing GplShared...");
-                RunCommand("nuget", $"pack \"{gplSharedNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
+                Console.WriteLine("Packing Native...");
+                RunCommand("nuget", $"pack \"{nativeNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
 
-                Console.WriteLine("Packing Runtime...");
-                RunCommand("nuget", $"pack \"{runtimeNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
+                Console.WriteLine("Packing Tools...");
+                RunCommand("nuget", $"pack \"{toolsNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");
                 
                 Console.WriteLine($"Done {version} {arch}.");
             }

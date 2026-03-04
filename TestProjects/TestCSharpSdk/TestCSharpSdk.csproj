@@ -8,8 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TqkLibrary.FFmpeg.GplShared.Win.x64" Version="8.0.1.48" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Runtime.Win.x64" Version="8.0.1.48" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Native.Win.x64" Version="8.0.1.48" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x64" Version="8.0.1.48" />
   </ItemGroup>
 
 </Project>
+

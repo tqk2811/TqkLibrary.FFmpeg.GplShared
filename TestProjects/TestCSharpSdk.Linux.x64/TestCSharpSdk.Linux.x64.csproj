@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TqkLibrary.FFmpeg.GplShared.Linux.x64" Version="8.0.1.48" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Runtime.Linux.x64" Version="8.0.1.48" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Native.Linux.x64" Version="8.0.1.48" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Linux.x64" Version="8.0.1.48" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,3 +17,4 @@
   </ItemGroup>
 
 </Project>
+

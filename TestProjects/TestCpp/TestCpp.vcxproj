@@ -40,9 +40,10 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="TqkLibrary.FFmpeg.GplShared.Win.x64" Version="8.0.1.48" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Native.Win.x64" Version="8.0.1.48" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
+
