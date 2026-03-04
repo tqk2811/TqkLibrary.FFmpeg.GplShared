@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 $rootDir = $PSScriptRoot
 $testDir = Join-Path $rootDir "TestProjects"
 $packagesDir = Join-Path $rootDir "Packages"
+$isWindows = ($env:OS -eq "Windows_NT")
 $msbuild = $null
 
 # Find MSBuild
@@ -168,7 +169,9 @@ $csharpTests = @(
     @{ Rid="win-arm64"; Fw="net8.0"; Files=$winExpected },
     @{ Rid="linux-x64"; Fw="net8.0"; Files=$linuxExpected },
     @{ Rid="linux-arm64"; Fw="net8.0"; Files=$linuxExpected },
-    @{ Rid="win-x64"; Fw="net472"; Files=$winExpected }
+    @{ Rid="win-x64"; Fw="net472"; Files=$winExpected },
+    @{ Rid="win-x86"; Fw="net472"; Files=$winExpected },
+    @{ Rid="win-arm64"; Fw="net472"; Files=$winExpected }
 )
 
 foreach ($t in $csharpTests) {

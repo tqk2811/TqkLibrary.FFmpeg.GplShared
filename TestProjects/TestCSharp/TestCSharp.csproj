@@ -20,11 +20,10 @@
   </ItemGroup>
 
   <!-- .NET Framework 4.7.2 (Fallback to conditions for custom MSBuild targets) -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472' And '$(RuntimeIdentifier)' == 'win-x64'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
     <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x64" Version="*" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472' And '$(RuntimeIdentifier)' == 'win-x86'">
     <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x86" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.arm64" Version="*" />
   </ItemGroup>
 
 </Project>
