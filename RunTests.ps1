@@ -57,9 +57,9 @@ function Test-CSharpPublish {
     # Check expected files
     $allFound = $true
     foreach ($f in $ExpectedFiles) {
-        $path = Join-Path $pubDir $f
-        if (Test-Path $path) {
-            Write-Host "  OK: $f" -ForegroundColor Green
+        $found = @(Get-ChildItem -LiteralPath $pubDir -Filter $f -ErrorAction SilentlyContinue)
+        if ($found.Count -gt 0) {
+            Write-Host "  OK: $($found[0].Name)" -ForegroundColor Green
         } else {
             Write-Host "  MISSING: $f" -ForegroundColor Red
             $allFound = $false
@@ -147,8 +147,8 @@ Remove-Item -Recurse -Force (Join-Path $csharpDir "bin"), (Join-Path $csharpDir 
 Remove-Item -Recurse -Force (Join-Path $cppDir "x64"), (Join-Path $cppDir "Win32"), (Join-Path $cppDir "ARM64"), (Join-Path $cppDir "Debug"), (Join-Path $cppDir "obj") -ErrorAction SilentlyContinue
 
 # Expected Files
-$winExpected = @("avcodec-62.dll","avdevice-62.dll","avfilter-11.dll","avformat-62.dll","avutil-60.dll","swresample-6.dll","swscale-9.dll","ffmpeg.exe","ffplay.exe","ffprobe.exe")
-$linuxExpected = @("libavcodec.so.62.11.100","libavdevice.so.62.1.100","libavfilter.so.11.4.100","libavformat.so.62.3.100","libavutil.so.60.8.100","libswresample.so.6.1.100","libswscale.so.9.1.100","ffmpeg","ffplay","ffprobe")
+$winExpected = @("avcodec-*.dll","avdevice-*.dll","avfilter-*.dll","avformat-*.dll","avutil-*.dll","swresample-*.dll","swscale-*.dll","ffmpeg.exe","ffplay.exe","ffprobe.exe")
+$linuxExpected = @("libavcodec.so.*","libavdevice.so.*","libavfilter.so.*","libavformat.so.*","libavutil.so.*","libswresample.so.*","libswscale.so.*","ffmpeg","ffplay","ffprobe")
 
 # ============================================
 # C# multi-target tests

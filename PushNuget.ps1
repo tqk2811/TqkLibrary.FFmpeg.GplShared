@@ -1,6 +1,3 @@
-Remove-Item -Recurse -Force .\Packages\** -ErrorAction SilentlyContinue
-dotnet run --project .\AutoPackager\AutoPackager.csproj
-
 $localNuget = $env:localNuget
 if(![string]::IsNullOrWhiteSpace($localNuget) -and (Test-Path $localNuget))
 {
