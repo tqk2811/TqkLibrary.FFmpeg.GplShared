@@ -138,7 +138,7 @@ function Test-CppVcxproj {
 # C# SDK Tests
 # ============================================
 Write-Host "=== Test 1: C# SDK win-x64 (build + run) ===" -ForegroundColor Yellow
-$sdkDir = Join-Path $testDir "TestCSharpSdk"
+$sdkDir = Join-Path $testDir "TestCSharpSdk.Win.x64"
 Remove-Item -Recurse -Force (Join-Path $sdkDir "bin"), (Join-Path $sdkDir "obj") -ErrorAction SilentlyContinue
 
 Write-Host "  Restoring (--no-cache)..."
@@ -209,7 +209,7 @@ Write-Host ""
 # ============================================
 # C++ Tests
 # ============================================
-$rc = Test-CppVcxproj "Test 6: C++ vcxproj win-x64 (build)" (Join-Path $testDir "TestCpp") "x64" $true
+$rc = Test-CppVcxproj "Test 6: C++ vcxproj win-x64 (build)" (Join-Path $testDir "TestCpp.Win.x64") "x64" $true
 if ($rc -eq "FAIL") { $allPassed = $false }
 $results += "C++ win-x64 : $rc"
 Write-Host ""
@@ -253,3 +253,4 @@ if ($allPassed) {
     Write-Host " SOME TESTS FAILED" -ForegroundColor Red
 }
 Write-Host "========================================" -ForegroundColor Cyan
+

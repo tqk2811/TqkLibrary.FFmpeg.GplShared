@@ -37,7 +37,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
-    <ClCompile Include="..\TestCpp\main.cpp" />
+    <ClCompile Include="..\TestCpp.Win.x64\main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="TqkLibrary.FFmpeg.Native.Linux.arm64" Version="8.0.1.49" />
@@ -46,3 +46,4 @@
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
+
