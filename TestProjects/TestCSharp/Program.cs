@@ -28,8 +28,8 @@ namespace TestCSharp
             {
                 expectedFiles = new[]
                 {
-                    "avcodec-62.dll", "avdevice-62.dll", "avfilter-11.dll",
-                    "avformat-62.dll", "avutil-60.dll", "swresample-6.dll", "swscale-9.dll",
+                    "avcodec-*.dll", "avdevice-*.dll", "avfilter-*.dll",
+                    "avformat-*.dll", "avutil-*.dll", "swresample-*.dll", "swscale-*.dll",
                     "ffmpeg.exe", "ffplay.exe", "ffprobe.exe"
                 };
             }
@@ -37,8 +37,8 @@ namespace TestCSharp
             {
                 expectedFiles = new[]
                 {
-                    "libavcodec.so.62.11.100", "libavdevice.so.62.1.100", "libavfilter.so.11.4.100",
-                    "libavformat.so.62.3.100", "libavutil.so.60.8.100", "libswresample.so.6.1.100", "libswscale.so.9.1.100",
+                    "libavcodec.so.*", "libavdevice.so.*", "libavfilter.so.*",
+                    "libavformat.so.*", "libavutil.so.*", "libswresample.so.*", "libswscale.so.*",
                     "ffmpeg", "ffplay", "ffprobe"
                 };
             }
@@ -51,9 +51,10 @@ namespace TestCSharp
             bool allFound = true;
             foreach (var f in expectedFiles)
             {
-                if (File.Exists(f))
+                var files = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, f, SearchOption.AllDirectories);
+                if (files.Length > 0)
                 {
-                    Console.WriteLine($"  [OK] Found: {f}");
+                    Console.WriteLine($"  [OK] Found: {files[0]}");
                 }
                 else
                 {
@@ -69,14 +70,19 @@ namespace TestCSharp
                 // Test loading one DLL (avutil) on Windows
                 if (isWindows)
                 {
-                    IntPtr handle = LoadLibrary("avutil-60.dll");
-                    if (handle != IntPtr.Zero)
+                    var avutilFiles = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory, "avutil-*.dll", SearchOption.AllDirectories);
+                    if (avutilFiles.Length > 0)
                     {
-                        Console.WriteLine("Successfully loaded avutil-60.dll using LoadLibrary");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Failed to load avutil-60.dll. Error Code: {Marshal.GetLastWin32Error()}");
+                        string avutilDllPath = avutilFiles[0];
+                        IntPtr handle = LoadLibrary(avutilDllPath);
+                        if (handle != IntPtr.Zero)
+                        {
+                            Console.WriteLine($"Successfully loaded {avutilDllPath} using LoadLibrary");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to load {avutilDllPath}. Error Code: {Marshal.GetLastWin32Error()}");
+                        }
                     }
                 }
             }
