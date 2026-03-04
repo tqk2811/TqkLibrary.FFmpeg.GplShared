@@ -175,40 +175,89 @@ namespace AutoPackager
                 string idShared = $"TqkLibrary.FFmpeg.GplShared.{osName}.{arch}";
                 string idRuntime = $"TqkLibrary.FFmpeg.Runtime.{osName}.{arch}";
 
+                string platformCondition = (arch, osName) switch
+                {
+                    ("x64", "Win") => " And ('$(Platform.ToLower())' == 'x64' Or '$(Platform.ToLower())' == 'win64')",
+                    ("x86", "Win") => " And ('$(Platform.ToLower())' == 'x86' Or '$(Platform.ToLower())' == 'win32')",
+                    ("x64", _) => " And '$(Platform.ToLower())' == 'x64'",
+                    ("x86", _) => " And '$(Platform.ToLower())' == 'x86'",
+                    ("arm64", _) => " And '$(Platform.ToLower())' == 'arm64'",
+                    _ => ""
+                };
+
+                string osCondition = osName switch
+                {
+                    "Win" => " And '$(OS)' == 'Windows_NT'",
+                    "Linux" => " And '$(OS)' == 'Unix'",
+                    "Mac" => " And '$(OS)' == 'OSX'",
+                    _ => ""
+                };
+
+                string finalCondition = platformCondition + osCondition;
+
                 string gplSharedProps = gplSharedPropsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
-                string gplSharedTargets = gplSharedTargetsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
                 
+                string runtimesRelPath = $"runtimes/{osId}-{arch}/native";
+                string safeIdShared = idShared.Replace(".", "_");
+                string safeIdRuntime = idRuntime.Replace(".", "_");
+                
+                // GplShared targets for managed projects (with .NET Framework copy support)
+                string gplSharedTargets = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project ToolsVersion=""4.0"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+	<Target Name=""CopyNativeLibs_{safeIdShared}"" AfterTargets=""Build"" Condition=""'$(UsingMicrosoftNETSdk)' != 'true'"">
+		<ItemGroup>
+			<_{safeIdShared}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
+		</ItemGroup>
+		<Copy SourceFiles=""@(_{safeIdShared}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
+	</Target>
+</Project>";
+
+                // Native targets for C++ projects (include/lib linking)
                 string nativeTargetTemplate = osName == "Win" 
 ? @"
-	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'"">
+	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'" + finalCondition + @""">
 		<ClCompile>
 			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ClCompile>
 		<Link>
-			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)win\" + arch + @"\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)win/" + arch + @"/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
 			<AdditionalDependencies>avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
 		</Link>
 	</ItemDefinitionGroup>
 </Project>"
 : @"
-	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'"">
+	<ItemDefinitionGroup Condition=""'$(Language)' == 'C++'" + finalCondition + @""">
 		<ClCompile>
 			<AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
 		</ClCompile>
 		<Link>
-			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)" + osId + @"\" + arch + @"\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalLibraryDirectories>$(MSBuildThisFileDirectory)" + osId + @"/" + arch + @"/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
 		</Link>
 	</ItemDefinitionGroup>
 </Project>";
 
-                string gplSharedNativeTargets = gplSharedTargets.Replace("</Project>", nativeTargetTemplate);
+                // Build native targets from base template + C++ config  
+                string gplSharedNativeTargetsBase = gplSharedTargetsTemplate.Replace("TqkLibrary.FFmpeg.GplShared", idShared);
+                string gplSharedNativeTargets = gplSharedNativeTargetsBase.Replace("</Project>", nativeTargetTemplate);
 
                 string runtimeProps = runtimePropsTemplate.Replace("TqkLibrary.FFmpeg.Runtimes", idRuntime);
+                
+                // Runtime targets for managed projects (with .NET Framework copy support)
+                string runtimeTargets = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<Project ToolsVersion=""4.0"" xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+	<Target Name=""CopyNativeLibs_{safeIdRuntime}"" AfterTargets=""Build"" Condition=""'$(UsingMicrosoftNETSdk)' != 'true'"">
+		<ItemGroup>
+			<_{safeIdRuntime}_NativeFiles Include=""$(MSBuildThisFileDirectory)../{runtimesRelPath}/*.*"" />
+		</ItemGroup>
+		<Copy SourceFiles=""@(_{safeIdRuntime}_NativeFiles)"" DestinationFolder=""$(OutDir)"" SkipUnchangedFiles=""true"" />
+	</Target>
+</Project>";
 
                 File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.props"), gplSharedProps);
                 File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.targets"), gplSharedTargets);
                 File.WriteAllText(Path.Combine(extractedBaseDir, $"{idShared}.native.targets"), gplSharedNativeTargets);
                 File.WriteAllText(Path.Combine(extractedBaseDir, $"{idRuntime}.props"), runtimeProps);
+                File.WriteAllText(Path.Combine(extractedBaseDir, $"{idRuntime}.targets"), runtimeTargets);
 
                 Console.WriteLine("Packing GplShared...");
                 RunCommand("nuget", $"pack \"{gplSharedNuspecPath}\" -OutputDirectory \"{packagesDir}\" -NoPackageAnalysis -BasePath \"{extractedBaseDir}\"");

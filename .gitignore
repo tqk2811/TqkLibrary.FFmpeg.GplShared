@@ -4,7 +4,11 @@ TempOutput/
 testExtract/
 bin
 obj
+x64/
+Debug/
+.vs/
 test.zip
 nuget.exe
 *.txt
 *.log
+*.user
