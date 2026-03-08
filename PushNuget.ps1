@@ -8,7 +8,7 @@ if(![string]::IsNullOrWhiteSpace($localNuget) -and (Test-Path $localNuget))
 $nugetKey=$env:nugetKey
 if([string]::IsNullOrEmpty($nugetKey))
 {
-	Write-Host "Pack success"
+	Write-Host "Not found env nugetKey"
 	pause
 }
 else
