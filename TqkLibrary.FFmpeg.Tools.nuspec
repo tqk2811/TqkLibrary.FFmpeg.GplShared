@@ -9,7 +9,7 @@
 		<readme>docs\README.md</readme>
 		<projectUrl>https://github.com/tqk2811/TqkLibrary.FFmpeg.GplShared</projectUrl>
 		<repository type="git" url="https://github.com/tqk2811/TqkLibrary.FFmpeg.GplShared.git"/>
-		<license type="expression">MIT</license>
+		<license type="expression">GPL-2.0-or-later</license>
 		<tags>native ffmpeg</tags>
 		<dependencies>
 			<dependency id="TqkLibrary.FFmpeg.Native" version="[$version$,$version$]"/>
