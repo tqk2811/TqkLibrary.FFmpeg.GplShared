@@ -121,33 +121,31 @@ namespace AutoPackager
                     extractedBaseDir = extractPath; // Fallback
                 }
                 
-                // Fix Linux/Mac symlinks missing on Windows extraction
-                if (osName == "Linux" || osName == "Mac")
+                // Linux: the .NET runtime resolves inter-library loads by SONAME (e.g. libavformat
+                // dlopens libavcodec.so.62), but the archive ships the real binary as the fully
+                // versioned libavcodec.so.62.11.103 and exposes the SONAME only via a symlink - and
+                // symlinks are lost when the archive is extracted on Windows. So materialise the real
+                // binary UNDER its SONAME name (libX.so.MAJOR); the versioned file is renamed, not
+                // copied, so there is no size penalty. The bare ".so" dev symlink is dropped (broken
+                // after extraction and unused at runtime).
+                if (osName == "Linux")
                 {
                     string libDir = Path.Combine(extractedBaseDir, "lib");
                     if (Directory.Exists(libDir))
                     {
-                        var libFiles = Directory.GetFiles(libDir, "*.*");
-                        foreach (var libFile in libFiles)
+                        foreach (var path in Directory.GetFiles(libDir))
                         {
-                            string fileName = Path.GetFileName(libFile);
-                            string baseName = null;
-                            
-                            var soMatch = Regex.Match(fileName, @"^(.*?\.so)\.");
-                            if (soMatch.Success) baseName = soMatch.Groups[1].Value;
-                            
-                            var dylibMatch = Regex.Match(fileName, @"^(.*?)\.\d+\.dylib$");
-                            if (dylibMatch.Success) baseName = dylibMatch.Groups[1].Value + ".dylib";
-                            
-                            if (baseName != null)
-                            {
-                                string basePath = Path.Combine(libDir, baseName);
-                                if (!File.Exists(basePath))
-                                {
-                                    File.Copy(libFile, basePath);
-                                }
-                            }
+                            // Match the real versioned binary libX.so.MAJOR.MINOR[.PATCH]; the >=2
+                            // numeric components skip the SONAME symlinks (single component) themselves.
+                            var m = Regex.Match(Path.GetFileName(path), @"^(?<base>.+\.so)\.(?<major>\d+)\.\d+");
+                            if (!m.Success) continue;
+                            string sonamePath = Path.Combine(libDir, $"{m.Groups["base"].Value}.{m.Groups["major"].Value}");
+                            File.Delete(sonamePath);      // no-op if absent; drops any extracted SONAME symlink/stub
+                            File.Move(path, sonamePath);  // rename versioned binary -> SONAME
                         }
+                        foreach (var path in Directory.GetFiles(libDir))
+                            if (Path.GetFileName(path).EndsWith(".so", StringComparison.Ordinal))
+                                File.Delete(path);        // drop leftover bare ".so" dev symlink
                     }
                 }
                 

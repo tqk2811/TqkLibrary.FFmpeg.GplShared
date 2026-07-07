@@ -29,7 +29,7 @@
 		<file src="$basePath$\bin\*.dll" target="runtimes\$os$-$arch$\native\" />
 		<file src="$basePath$\lib\*.lib" target="build\native\$os$\$arch$\lib\" />
 
-		<file src="$basePath$\lib\*.so.*.*" target="runtimes\$os$-$arch$\native\" />
+		<file src="$basePath$\lib\*.so.*" target="runtimes\$os$-$arch$\native\" />
 		<file src="$basePath$\lib\*.a" target="build\native\$os$\$arch$\lib\" />
 
 		<file src="$basePath$\include\**\*" target="build\native\include\" />
