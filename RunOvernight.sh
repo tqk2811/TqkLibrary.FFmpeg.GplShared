@@ -31,7 +31,14 @@ TZONE="${TZONE:-Asia/Ho_Chi_Minh}"
 # NO_DEADLINE=1 disables the STOP_HOUR cutoff entirely (run until all combos done).
 NO_DEADLINE="${NO_DEADLINE:-0}"
 
-# Deadline = next occurrence of STOP_HOUR:00 in TZONE (epoch is TZ-independent).
+# Deadline file: past_deadline() re-reads this before every combo, so the cutoff
+# can be CHANGED AT RUNTIME (write a new value into it -- e.g. via ./set-deadline.sh)
+# without restarting the run. The in-progress combo always finishes; only the
+# START of the next combo is gated. File content may be an epoch (seconds) or any
+# string `date -d` accepts ("06:30", "2026-07-09 06:30"), interpreted in TZONE.
+DEADLINE_FILE="${DEADLINE_FILE:-$REPO_DIR/deadline.conf}"
+
+# Initial deadline = next occurrence of STOP_HOUR:00 in TZONE (epoch is TZ-independent).
 now_epoch="$(date +%s)"
 today_deadline="$(TZ="$TZONE" date -d "today ${STOP_HOUR}:00" +%s)"
 if [ "$now_epoch" -lt "$today_deadline" ]; then
@@ -39,9 +46,28 @@ if [ "$now_epoch" -lt "$today_deadline" ]; then
 else
     DEADLINE="$(TZ="$TZONE" date -d "tomorrow ${STOP_HOUR}:00" +%s)"
 fi
+# Seed the deadline file with the computed default unless one was pre-placed
+# (a pre-existing file lets you fix a custom cutoff before launch).
+if [ ! -s "$DEADLINE_FILE" ]; then
+    echo "$DEADLINE" > "$DEADLINE_FILE"
+fi
 
 log() { echo "[$(TZ="$TZONE" date '+%F %T %Z')] $*" | tee -a "$PROGRESS"; }
-past_deadline() { [ "$NO_DEADLINE" = "1" ] && return 1; [ "$(date +%s)" -ge "$DEADLINE" ]; }
+
+# Resolve the effective deadline epoch from DEADLINE_FILE (falls back to $DEADLINE
+# if the file is missing/empty/unparseable). Called fresh before every combo.
+read_deadline() {
+  local line ep
+  line="$(head -1 "$DEADLINE_FILE" 2>/dev/null | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+  if [ -z "$line" ]; then echo "$DEADLINE"; return; fi
+  if printf '%s' "$line" | grep -qE '^[0-9]+$'; then
+    echo "$line"
+  else
+    ep="$(TZ="$TZONE" date -d "$line" +%s 2>/dev/null)"
+    if [ -n "$ep" ]; then echo "$ep"; else echo "$DEADLINE"; fi
+  fi
+}
+past_deadline() { [ "$NO_DEADLINE" = "1" ] && return 1; [ "$(date +%s)" -ge "$(read_deadline)" ]; }
 disk_free() { df -h --output=avail "$REPO_DIR" 2>/dev/null | tail -1 | tr -d ' '; }
 
 built=0; skipped=0; failed=0
@@ -51,7 +77,7 @@ log "RunOvernight start (PID $$)"
 if [ "$NO_DEADLINE" = "1" ]; then
   log "Deadline: DISABLED (NO_DEADLINE=1) -- runs until all combos done"
 else
-  log "Deadline (no new build after): $(TZ="$TZONE" date -d "@$DEADLINE" '+%F %T %Z')"
+  log "Deadline (no new build after): $(TZ="$TZONE" date -d "@$(read_deadline)" '+%F %T %Z')  [live file: $DEADLINE_FILE]"
 fi
 log "VERSIONS = $VERSIONS"
 log "VARIANTS = $VARIANTS"
