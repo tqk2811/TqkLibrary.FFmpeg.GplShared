@@ -238,7 +238,7 @@ namespace AutoPackager
                     "## Source",
                     "",
                     "- Packaging & build scripts: https://github.com/tqk2811/FFmpegBuild",
-                    "- Prebuilt binaries: https://github.com/tqk2811/FFmpeg-Builds/releases",
+                    "- Prebuilt binaries: https://github.com/tqk2811/FFmpegBuild/releases",
                     "- Built on top of [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds).",
                 });
                 File.WriteAllText(Path.Combine(extractedBaseDir, "README.md"), readmeContent);
