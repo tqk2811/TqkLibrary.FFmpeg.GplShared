@@ -184,8 +184,63 @@ namespace AutoPackager
                 File.WriteAllText(nativeNuspecPath, nativeNuspec);
                 File.WriteAllText(toolsNuspecPath, toolsNuspec);
 
-                // Generate README
-                string readmeContent = $"# TqkLibrary.FFmpeg.Native\n\n{Path.GetFileNameWithoutExtension(archiveFile)}";
+                // Generate README (shared by the Native + Tools package of this combo)
+                string osLabel = osName switch { "Win" => "Windows", "Linux" => "Linux", _ => "macOS" };
+                string rid = $"{osId}-{arch}";
+                string tag = Regex.Replace(Path.GetFileName(archiveFile), @"\.(zip|tar\.xz)$", "", RegexOptions.IgnoreCase);
+                bool isV2 = licenseSegment.EndsWith("2", StringComparison.Ordinal);
+                bool hasFfplay = !(osName == "Linux" && isV2);
+                string nativeExtra = osName == "Win" ? " + import libraries (`.lib`) + C headers" : " + C headers";
+                string toolsList = hasFfplay ? "ffmpeg, ffplay, ffprobe" : "ffmpeg, ffprobe";
+                string v2Note = isV2
+                    ? "\n> **Note:** `Gpl2`/`Lgpl2` builds have OpenSSL and its dependents (srt, libssh, libcurl, libaribcaption, pulseaudio) disabled for license compatibility. On Linux, `sdl2` is also disabled, so `ffplay` is **not** included.\n"
+                    : "";
+
+                string readmeContent = string.Join("\n", new[]
+                {
+                    $"# TqkLibrary.FFmpeg.{licenseSegment} — {osLabel} {arch}",
+                    "",
+                    $"**FFmpeg {version}** shared build · {osLabel} {arch} · `{licenseSpdx}`  ",
+                    $"Upstream build tag: `{tag}`",
+                    "",
+                    "This FFmpeg build is published as two NuGet packages:",
+                    "",
+                    "| Package | Contents |",
+                    "|---|---|",
+                    $"| `{idNative}` | Shared libraries: avcodec, avdevice, avfilter, avformat, avutil, swresample, swscale{nativeExtra} |",
+                    $"| `{idTools}` | Command-line tools: {toolsList}; depends on `{idNative}` |",
+                    "",
+                    "## How the binaries are delivered",
+                    "",
+                    $"Native binaries ship under `runtimes/{rid}/native/`:",
+                    "",
+                    $"- **.NET SDK-style projects** resolve them automatically when the build/publish RID matches `{rid}` (e.g. `dotnet publish -r {rid}`, or a matching `<RuntimeIdentifier>`).",
+                    "- **.NET Framework projects** get them copied next to the build output by the bundled MSBuild targets.",
+                    "- **C++ (MSBuild) projects** (Native package): the `build/native` targets add `include/` to the compiler include path and the import libraries to the linker automatically.",
+                    "",
+                    "## Package matrix",
+                    "",
+                    "Pick the sibling package that matches your target:",
+                    "",
+                    "```",
+                    "TqkLibrary.FFmpeg.{Gpl3|Lgpl3|Gpl2|Lgpl2}.{Native|Tools}.{Win|Linux}.{x64|x86|arm64}",
+                    "```",
+                    "",
+                    "- **License:** `Gpl3`/`Lgpl3` = built with `--enable-version3` (GPL-3.0 / LGPL-3.0); `Gpl2`/`Lgpl2` = GPL-2.0 / LGPL-2.1.",
+                    "- **`x86` (win32) is not available for FFmpeg 5.0 and 6.1** (those versions fail to compile the 32-bit Vulkan code).",
+                    "",
+                    "## License",
+                    "",
+                    $"This package is `{licenseSpdx}`. FFmpeg is free software and redistributing these binaries carries that license's obligations — in particular, linking your application against a **GPL** build places your application under the GPL. Use an **`Lgpl*`** variant if you need to keep your application under a different license.",
+                    v2Note,
+                    "See `docs/LICENSE.txt` in the package for the full license text.",
+                    "",
+                    "## Source",
+                    "",
+                    "- Packaging & build scripts: https://github.com/tqk2811/FFmpegBuild",
+                    "- Prebuilt binaries: https://github.com/tqk2811/FFmpeg-Builds/releases",
+                    "- Built on top of [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds).",
+                });
                 File.WriteAllText(Path.Combine(extractedBaseDir, "README.md"), readmeContent);
                 
                 // Write props and targets dynamically
