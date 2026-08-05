@@ -1,6 +1,7 @@
 Release/
 Packages/
 TempOutput/
+TempOutputAndroid/
 testExtract/
 artifacts/
 artifacts-android/
