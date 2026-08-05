@@ -34,6 +34,11 @@ ROOT="$HOME/android-ffbuild"
 NDK="$HOME/android/ndk/android-ndk-r26d"
 TC="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
 API=21
+# Build/link uses $NDK (r26d) above. But r26d's prebuilt libc++_shared.so is only
+# 4 KB-page-aligned; Android 15+/16 KB-page devices reject 4 KB-aligned libs. r27+
+# ships a 16 KB-aligned libc++_shared.so, so SHIP that one (copied into the archive
+# only; it stays ABI-compatible down to API 21). Override path with env LIBCXX_NDK.
+LIBCXX_NDK="${LIBCXX_NDK:-$HOME/android/ndk/android-ndk-r27d}"
 LOCALBIN="$HOME/.local/bin"
 
 SRCROOT="$ROOT/src-libs"          # external-lib source checkouts
@@ -663,7 +668,7 @@ _ff_configure(){ # ffdir ffprefix
       --sysroot='$SYSROOT' \
       --enable-shared --disable-static --disable-doc --disable-ffplay --disable-vulkan \
       $LIC --pkg-config-flags=--static \
-      --extra-cflags='-I$PREFIX/include' --extra-ldflags='-L$PREFIX/lib' \
+      --extra-cflags='-I$PREFIX/include' --extra-ldflags='-L$PREFIX/lib -Wl,-z,max-page-size=16384' \
       --extra-libs='-lc++_shared -lm' \
       $EN"
 }
@@ -743,8 +748,28 @@ build_ffmpeg(){
   steps "cd '$FF_DIR' && make install" >>"$mk_log" 2>&1 || return 1
   # Bundle the NDK C++ runtime that the shared libs + programs link against
   # (configure passes -lc++_shared); it is not part of FFmpeg's own install.
+  # Ship a 16 KB-page-aligned libc++_shared.so: r26d's (build NDK) is 4 KB, so
+  # prefer $LIBCXX_NDK (r27+, 16 KB); fall back to the build NDK's with a WARN.
+  local libcxx16="$LIBCXX_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$TRIPLE/libc++_shared.so"
   local libcxx="$SYSROOT/usr/lib/$TRIPLE/libc++_shared.so"
-  if [ -f "$libcxx" ]; then cp -f "$libcxx" "$FF_PREFIX/lib/"; else log "WARN: libc++_shared.so not found at $libcxx"; fi
+  if [ -f "$libcxx16" ]; then
+    cp -f "$libcxx16" "$FF_PREFIX/lib/"
+  elif [ -f "$libcxx" ]; then
+    cp -f "$libcxx" "$FF_PREFIX/lib/"
+    log "WARN: 16 KB libc++ not found at $libcxx16; shipped build NDK's (likely 4 KB-aligned)"
+  else
+    log "WARN: libc++_shared.so not found (checked $libcxx16 and $libcxx)"
+  fi
+  # Verify EVERY shipped .so is 16 KB (0x4000) page-aligned: libav* via the FFmpeg
+  # --extra-ldflags max-page-size flag, libc++ via $LIBCXX_NDK. WARN loudly if not.
+  local rd="$TC/bin/llvm-readelf" so algn bad16=0
+  if [ -x "$rd" ]; then
+    for so in "$FF_PREFIX"/lib/*.so; do
+      algn=$("$rd" -lW "$so" 2>/dev/null | awk '$1=="LOAD"{print $NF; exit}')
+      [ "$algn" = "0x4000" ] || { log "WARN: $(basename "$so") LOAD align=$algn (want 0x4000/16KB)"; bad16=1; }
+    done
+    [ "$bad16" = 0 ] && log "16 KB page-align OK: all lib/*.so are 0x4000-aligned"
+  fi
   # Ship the matching GNU license text as LICENSE.txt (FFmpeg source has COPYING.*).
   local copying; copying=$(_variant_copying "$variant")
   if [ -n "$copying" ] && [ -f "$FF_DIR/$copying" ]; then
