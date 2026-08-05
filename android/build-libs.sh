@@ -661,7 +661,7 @@ _ff_configure(){ # ffdir ffprefix
       --enable-cross-compile --cross-prefix='$TC/bin/llvm-' --pkg-config=pkg-config \
       --cc='$CC' --cxx='$CXX' --ar='$AR' --nm='$NM' --ranlib='$RANLIB' --strip='$STRIP' \
       --sysroot='$SYSROOT' \
-      --enable-shared --disable-static --disable-doc --disable-programs --disable-vulkan \
+      --enable-shared --disable-static --disable-doc --disable-ffplay --disable-vulkan \
       $LIC --pkg-config-flags=--static \
       --extra-cflags='-I$PREFIX/include' --extra-ldflags='-L$PREFIX/lib' \
       --extra-libs='-lc++_shared -lm' \
@@ -741,6 +741,10 @@ build_ffmpeg(){
   DROPPED_LIBS="${dropped[*]}"
 
   steps "cd '$FF_DIR' && make install" >>"$mk_log" 2>&1 || return 1
+  # Bundle the NDK C++ runtime that the shared libs + programs link against
+  # (configure passes -lc++_shared); it is not part of FFmpeg's own install.
+  local libcxx="$SYSROOT/usr/lib/$TRIPLE/libc++_shared.so"
+  if [ -f "$libcxx" ]; then cp -f "$libcxx" "$FF_PREFIX/lib/"; else log "WARN: libc++_shared.so not found at $libcxx"; fi
   # Ship the matching GNU license text as LICENSE.txt (FFmpeg source has COPYING.*).
   local copying; copying=$(_variant_copying "$variant")
   if [ -n "$copying" ] && [ -f "$FF_DIR/$copying" ]; then
@@ -749,8 +753,12 @@ build_ffmpeg(){
     log "WARN: $copying not found in source; archive will lack LICENSE.txt"
   fi
   local extra_files=""; [ -f "$FF_PREFIX/LICENSE.txt" ] && extra_files="LICENSE.txt"
+  # Programs (ffmpeg, ffprobe; ffplay disabled) install to bin/ now that
+  # --disable-programs was dropped (programs are default-on; only ffplay is
+  # explicitly disabled); include the dir in the archive when present.
+  local prog_dir=""; [ -d "$FF_PREFIX/bin" ] && prog_dir="bin"
   steps "cd '$FF_PREFIX' && tar -cJf \
-      '$ROOT/artifacts/ffmpeg-$ffver-android-$abi-$variant-shared-full.tar.xz' lib include $extra_files" || return 1
+      '$ROOT/artifacts/ffmpeg-$ffver-android-$abi-$variant-shared-full.tar.xz' lib include $prog_dir $extra_files" || return 1
   grep -iA30 'External libraries' "$cfg_log" 2>/dev/null | sed -n '1,25p' \
       > "$LOGDIR/ffmpeg-$ver-$variant-$abi.extlibs.txt" || true
   rm -rf "$FF_DIR"                                # reclaim disk; artifact is kept
