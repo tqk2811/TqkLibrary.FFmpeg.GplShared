@@ -12,18 +12,18 @@
 
   <!-- .NET 8 (SDK natively supports multiple runtimes without conditionals!) -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x64" Version="*" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x86" Version="*" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.arm64" Version="*" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Linux.x64" Version="*" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Linux.arm64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Win.x64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Win.x86" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Win.arm64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Linux.x64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Linux.arm64" Version="*" />
   </ItemGroup>
 
   <!-- .NET Framework 4.7.2 (Fallback to conditions for custom MSBuild targets) -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x64" Version="*" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.x86" Version="*" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Tools.Win.arm64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Win.x64" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Win.x86" Version="*" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Tools.Win.arm64" Version="*" />
   </ItemGroup>
 
 </Project>

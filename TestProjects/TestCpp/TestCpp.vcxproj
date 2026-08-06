@@ -194,11 +194,11 @@
     <ProjectCapability Include="PackageReferences" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="TqkLibrary.FFmpeg.Native.Win.x86" Version="8.0.1.48" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Native.Win.x64" Version="8.0.1.48" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Native.Win.arm64" Version="8.0.1.48" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Native.Linux.x64" Version="8.0.1.48" />
-    <PackageReference Include="TqkLibrary.FFmpeg.Native.Linux.arm64" Version="8.0.1.49" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Native.Win.x86" Version="8.1.2.21" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Native.Win.x64" Version="8.1.2.21" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Native.Win.arm64" Version="8.1.2.21" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Native.Linux.x64" Version="8.1.2.21" />
+    <PackageReference Include="TqkLibrary.FFmpeg.Gpl3.Native.Linux.arm64" Version="8.1.2.21" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
