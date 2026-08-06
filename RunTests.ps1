@@ -1,12 +1,16 @@
 # RunTests.ps1 - Test NuGet packages locally
-# Usage: .\RunTests.ps1
+# Usage: .\RunTests.ps1                       # full matrix (all RIDs)
+#        .\RunTests.ps1 -Rids win-x64,linux-x64   # only the given RIDs
 # Requires: dotnet SDK, MSBuild (Visual Studio) for Framework/C++ tests
+param(
+    [string[]]$Rids = @()   # empty = all RIDs; otherwise filter both C# and C++ tests to these RIDs
+)
 
 $ErrorActionPreference = "Stop"
 $rootDir = $PSScriptRoot
 $testDir = Join-Path $rootDir "TestProjects"
 $packagesDir = Join-Path $rootDir "Packages"
-$isWindows = ($env:OS -eq "Windows_NT")
+$isWinHost = ($env:OS -eq "Windows_NT")
 $msbuild = $null
 
 # Find MSBuild
@@ -175,7 +179,8 @@ $csharpTests = @(
 )
 
 foreach ($t in $csharpTests) {
-    if ($t.Fw -eq "net472" -and -not $isWindows) { continue }
+    if ($Rids.Count -gt 0 -and $Rids -notcontains $t.Rid) { continue }
+    if ($t.Fw -eq "net472" -and -not $isWinHost) { continue }
     $rc = Test-CSharpPublish $csharpDir $t.Rid $t.Fw $t.Files
     if ($rc -eq "FAIL") { $allPassed = $false }
     $results += "C# SDK ($($t.Fw)) [$($t.Rid)] : $rc"
@@ -186,14 +191,15 @@ foreach ($t in $csharpTests) {
 # C++ multi-target tests
 # ============================================
 $cppTests = @(
-    @{ Name="C++ win-x64"; Platform="x64"; AppType=""; Build=$true },
-    @{ Name="C++ win-x86"; Platform="Win32"; AppType=""; Build=$true },
-    @{ Name="C++ win-arm64"; Platform="ARM64"; AppType=""; Build=$true },
-    @{ Name="C++ linux-x64"; Platform="x64"; AppType="Linux"; Build=$true },
-    @{ Name="C++ linux-arm64"; Platform="ARM64"; AppType="Linux"; Build=$true }
+    @{ Name="C++ win-x64"; Rid="win-x64"; Platform="x64"; AppType=""; Build=$true },
+    @{ Name="C++ win-x86"; Rid="win-x86"; Platform="Win32"; AppType=""; Build=$true },
+    @{ Name="C++ win-arm64"; Rid="win-arm64"; Platform="ARM64"; AppType=""; Build=$true },
+    @{ Name="C++ linux-x64"; Rid="linux-x64"; Platform="x64"; AppType="Linux"; Build=$true },
+    @{ Name="C++ linux-arm64"; Rid="linux-arm64"; Platform="ARM64"; AppType="Linux"; Build=$true }
 )
 
 foreach ($t in $cppTests) {
+    if ($Rids.Count -gt 0 -and $Rids -notcontains $t.Rid) { continue }
     $rc = Test-CppVcxproj $t.Name $cppDir $t.Platform $t.AppType $t.Build
     if ($rc -eq "FAIL") { $allPassed = $false }
     $results += "$($t.Name) : $rc"
