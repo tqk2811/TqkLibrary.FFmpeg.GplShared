@@ -208,6 +208,15 @@ what the loader actually needs at runtime. Linking against these on Linux theref
 Pushing to nuget.org happens per file with `-SkipDuplicate`; nuget.org enforces a push quota
 (HTTP 403 “Quota Exceeded” with a retry-after) when uploading hundreds of packages in one go.
 
+### Rule for future build rounds: keep `Native` and `Tools` split
+
+**The shared libraries must stay in the `Native` package only; the `Tools` package must keep shipping just
+the executables and depend on `Native`.** This is a deliberate size decision — bundling the `.so`/`.dll`
+into `Tools` as well would ship every library twice for anyone who takes both packages. It applies to
+every platform, Android included: do **not** "fix" the Android tools by copying the libraries next to them
+or by adding renamed `lib*.so` duplicates of the executables. Consumers that run the tools point
+`LD_LIBRARY_PATH` (or the platform equivalent) at the libraries delivered by `Native`.
+
 ---
 
 ## 5. Known limitations
@@ -219,10 +228,14 @@ Pushing to nuget.org happens per file with `-SkipDuplicate`; nuget.org enforces 
 - **`Gpl2` / `Lgpl2` variants have OpenSSL disabled** (Apache-2.0 is incompatible with GPL-2.0 / LGPL-2.1),
   together with everything that links it: srt, libssh, libcurl, libaribcaption, pulseaudio. On **Linux**,
   sdl2 depends on pulseaudio in this chain, so Linux v2 builds also have **no `ffplay`**.
-- **Android `Tools` packages ship raw ELF executables** (`ffmpeg`, `ffprobe`, no `lib*.so` name), so a stock
-  non-rooted device will not execute them straight out of the APK. They are meant for `adb push` + `chmod +x`,
-  rooted devices, or apps that copy them to their own executable-permitted directory. For in-app media
-  processing, call the shared libraries from the `Native` package instead.
+- **Android `Tools` packages contain only the `ffmpeg` / `ffprobe` executables.** The shared libraries stay in
+  the matching `Native` package (which `Tools` depends on) so they are not shipped twice — set
+  `LD_LIBRARY_PATH` to wherever those `.so` files are when running the tools. The executables keep their plain
+  names, which is fine for a **shell** context (`adb push` to `/data/local/tmp` + `chmod +x`, Termux, or root)
+  but means they are **not** runnable from inside an installed app: Android only executes binaries from the
+  app's native library directory, which requires a `lib*.so` name plus `extractNativeLibs="true"`, and API 29+
+  forbids exec from the app's own writable directories. For in-app media processing, call the shared libraries
+  from the `Native` package (P/Invoke) instead of shelling out.
 - Android ABIs are limited to **arm64-v8a** and **x86_64** (no `armeabi-v7a`, no 32-bit `x86`).
 - macOS targets are not built.
 
