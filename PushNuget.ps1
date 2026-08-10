@@ -46,11 +46,17 @@ if ($packages.Count -eq 0) {
     return
 }
 
-# Copy to the local feed first: that part is harmless and works without an API key.
+# Copy to the local feed first: harmless, and works without an API key. Never let a problem
+# here (feed offline, file locked, disk full) stop the nuget.org push that follows.
 $localNuget = $env:localNuget
 if (![string]::IsNullOrWhiteSpace($localNuget) -and (Test-Path $localNuget)) {
-    Copy-Item -Path (Join-Path $PackagesDir $Filter) -Destination $localNuget -Force
-    Write-Host "Copied packages to $localNuget"
+    try {
+        Copy-Item -Path (Join-Path $PackagesDir $Filter) -Destination $localNuget -Force -ErrorAction Stop
+        Write-Host "Copied packages to $localNuget"
+    }
+    catch {
+        Write-Host "Could not copy to local feed ${localNuget}: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
 }
 
 $nugetKey = $env:nugetKey
