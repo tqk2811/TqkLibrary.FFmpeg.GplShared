@@ -89,3 +89,12 @@ thuộc lúc chạy; xem bằng `readelf -d <file> | grep NEEDED`. Các tên nh�
 `libz.so`, `libdl.so` là thư viện **hệ thống** đã có sẵn trên mọi máy Android (`/system/lib64`) nên
 KHÔNG cần đóng gói; chỉ các `libav*.so` (engine FFmpeg) và `libc++_shared.so` (C++ runtime, Android
 không ship bản tương thích) mới phải kèm trong gói/APK.
+
+## nuspec / nupkg
+
+`.nuspec` là file XML **mô tả** một gói NuGet: id, version, license, mô tả, dependency và danh sách
+file cần đóng vào. `nuget pack <file.nuspec>` đọc nó và tạo ra `.nupkg` — chính là gói NuGet thành
+phẩm, thực chất là một file **zip** (mở bằng tool zip bất kỳ sẽ thấy file `.nuspec` nằm kèm bên
+trong cùng nội dung gói). Lưu ý: một `<file src="...*">` trong nuspec không khớp file nào sẽ bị
+**bỏ qua im lặng** (không lỗi), và gói đã push lên nuget.org là **bất biến** — không sửa/ghi đè
+được, chỉ có thể unlist hoặc push version mới.
