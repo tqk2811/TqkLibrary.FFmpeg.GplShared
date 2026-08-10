@@ -69,3 +69,23 @@ gặp: **`shell`** (tiến trình từ `adb shell`) được exec file trong `/d
 (app thường do người dùng cài) thì không — app còn không đọc được `/data/local/tmp`, và bị
 [W^X](#W^X-Write-XOR-Execute) chặn exec trong thư mục dữ liệu của chính nó. Vì vậy cùng một file nhị
 phân có thể chạy tốt qua `adb shell` nhưng vẫn không chạy được từ trong app.
+
+## Shared build vs Static build (liên kết động / tĩnh)
+
+Bản **shared** (`-shared`, `--enable-shared --disable-static`) build ra file thực thi "mỏng"
+(`ffmpeg` ~397 KB) chỉ chứa phần điều phối; toàn bộ engine (codec, muxer, filter, scaler) nằm trong
+các thư viện `.so` tách rời (`libavcodec.so`, `libavformat.so`...). File thực thi ghi danh sách thư
+viện cần nạp lúc chạy ở các mục [NEEDED](#NEEDED) của header [ELF](#ELF), trình nạp động phân giải
+chúng qua [LD_LIBRARY_PATH](#LD_LIBRARY_PATH) hoặc [nativeLibraryDir](#nativeLibraryDir). Do đó
+`ffmpeg` shared **không chạy độc lập** — phải đi kèm đủ các `.so` phụ thuộc (7 `libav*.so` +
+`libc++_shared.so`). Ngược lại **static** (`--enable-static --disable-shared`, gộp mọi thứ vào một
+file) cho ra một `ffmpeg` chạy độc lập không cần `.so` nhưng file lớn hơn nhiều — repo này KHÔNG build
+kiểu static cho Android.
+
+## NEEDED
+
+Mục trong bảng động (`.dynamic`) của một [ELF](#ELF) liệt kê tên các thư viện chia sẻ mà file phụ
+thuộc lúc chạy; xem bằng `readelf -d <file> | grep NEEDED`. Các tên như `libc.so`, `libm.so`,
+`libz.so`, `libdl.so` là thư viện **hệ thống** đã có sẵn trên mọi máy Android (`/system/lib64`) nên
+KHÔNG cần đóng gói; chỉ các `libav*.so` (engine FFmpeg) và `libc++_shared.so` (C++ runtime, Android
+không ship bản tương thích) mới phải kèm trong gói/APK.
