@@ -498,7 +498,7 @@ namespace AutoPackager
                     $"**FFmpeg {version}** shared build · Android {abi} (`{rid}`) · `{licenseSpdx}`  ",
                     $"Upstream build tag: `{tag}`",
                     "",
-                    "Built with the Android NDK (r26d, API 21). This FFmpeg build is published as two NuGet packages:",
+                    "Built with the Android NDK (API 21), 16 KB page-size aligned for Android 15+: compiled and linked with r26d (`-Wl,-z,max-page-size=16384`), while `libc++_shared.so` is bundled from r27d because r26d's prebuilt copy is only 4 KB-aligned. This FFmpeg build is published as two NuGet packages:",
                     "",
                     "| Package | Contents |",
                     "|---|---|",
