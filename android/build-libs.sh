@@ -47,6 +47,9 @@ LOGDIR="$ROOT/logs"               # one log per lib per ABI
 STATEDIR="$ROOT/state"            # (reserved) build markers
 STATUS="$ROOT/deps/BUILD_STATUS.txt"
 FF_SRC_BASE="$ROOT/src/ffmpeg-8.1-x86_64"   # pristine FFmpeg 8.1 git checkout
+# Pin specific FFmpeg versions to an EXACT commit (byte-consistent with the desktop
+# BtbN builds). Keyed by 2-part version; a version not listed uses the release/<ver> tip.
+declare -A FF_PIN_COMMIT=( [9.0]="03d9533176e98bb9fbf569c1f34968e73e948dd9" )
 JOBS=4
 # ABIS overridable via env ANDROID_ABIS (space-separated) for targeted test runs.
 IFS=' ' read -r -a ABIS <<< "${ANDROID_ABIS:-arm64-v8a x86_64}"
@@ -615,9 +618,34 @@ _variant_flags(){
 ensure_tags(){ # dir
   local d="$1"
   git -C "$d" describe --tags --match 'n*' >/dev/null 2>&1 && return 0
-  log "fetch tags into $(basename "$d") for full version" >&2
-  git -C "$d" fetch --tags --depth 200 >/dev/null 2>&1 \
-    || git -C "$d" fetch --tags --unshallow >/dev/null 2>&1 || true
+  log "fetch tags + deepen history in $(basename "$d") for full version" >&2
+  git -C "$d" fetch --tags --depth 200 >/dev/null 2>&1 || true
+  git -C "$d" describe --tags --match 'n*' >/dev/null 2>&1 && return 0
+  # --depth 200 fetches the tag refs but may NOT extend HEAD's ancestry far enough to
+  # reach the nearest release tag (seen on the pinned 9.0 clone: 430 tag refs present yet
+  # history still depth 1, so describe failed). --deepen extends the ancestry so describe
+  # can walk back from the pinned commit to the n<ver> tag.
+  git -C "$d" fetch --tags --deepen 250 >/dev/null 2>&1 || true
+  git -C "$d" describe --tags --match 'n*' >/dev/null 2>&1 && return 0
+  git -C "$d" fetch --tags --unshallow >/dev/null 2>&1 || true
+}
+
+# If FF_PIN_COMMIT has an entry for $ver, ensure that commit is present (a shallow
+# clone may lack it) and detach the checkout onto it, so every build of that version
+# comes from ONE identical source tree (matches the pinned desktop build).
+_ff_pin_checkout(){ # dir ver
+  local d="$1" ver="$2" pin="${FF_PIN_COMMIT[$2]:-}"
+  [ -z "$pin" ] && return 0
+  if ! git -C "$d" cat-file -e "${pin}^{commit}" 2>/dev/null; then
+    log "fetch pin $pin for $ver" >&2
+    git -C "$d" fetch --depth 200 origin "$pin" >/dev/null 2>&1 \
+      || git -C "$d" fetch --unshallow >/dev/null 2>&1 || true
+  fi
+  if git -C "$d" checkout --detach "$pin" >/dev/null 2>&1; then
+    log "pinned $ver -> $pin" >&2
+  else
+    log "WARN: could not pin $ver to $pin (using current checkout)" >&2
+  fi
 }
 
 # Full FFmpeg version label for artifact naming, desktop-style: prefer
@@ -654,6 +682,7 @@ ff_src_dir(){ # ver
         https://github.com/FFmpeg/FFmpeg.git "$d" >&2 || return 1
   fi
   ensure_tags "$d"
+  _ff_pin_checkout "$d" "$ver"
   echo "$d"
 }
 
@@ -709,6 +738,7 @@ build_ffmpeg(){
   local FF_DIR="$ROOT/src/ffmpeg-$ver-full-$abi-$variant"
   rm -rf "$FF_DIR" "$FF_PREFIX"
   git clone --local "$FF_SRC" "$FF_DIR" || return 1
+  _ff_pin_checkout "$FF_DIR" "$ver"
   _variant_flags "$variant" || { log "unknown variant $variant"; return 2; }
 
   # Assemble --enable flags from libs installed for this ABI, honouring license.
