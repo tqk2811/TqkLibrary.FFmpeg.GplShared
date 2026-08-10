@@ -4,7 +4,7 @@
 	<metadata>
 		<id>TqkLibrary.FFmpeg.Tools.Android</id>
 		<version>$version$</version>
-		<description>FFmpeg Tools (ffmpeg, ffprobe) $os$ $arch$ ($license$)</description>
+		<description>FFmpeg Tools ($toolsList$) $os$ $arch$ ($license$)</description>
 		<authors>tqk2811</authors>
 		<readme>docs\README.md</readme>
 		<projectUrl>https://github.com/tqk2811/FFmpegBuild</projectUrl>

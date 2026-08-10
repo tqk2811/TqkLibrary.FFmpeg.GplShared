@@ -161,6 +161,16 @@ namespace AutoPackager
                 
                 string relativeBaseDir = ".";
 
+                // Read what the archive actually contains rather than assuming a fixed set: the
+                // library list changed across releases (no libpostproc from 8.0 on) and the tool
+                // list varies by variant, so both the nuspec description and the README are
+                // generated from the files that really get packed.
+                string[] nativeLibNames = FindFFmpegLibNames(
+                    Path.Combine(extractedBaseDir, osName == "Win" ? "bin" : "lib"));
+                string[] toolNames = FindToolNames(Path.Combine(extractedBaseDir, "bin"));
+                string nativeLibList = string.Join(", ", nativeLibNames);
+                string toolsList = string.Join(", ", toolNames);
+
                 string idNative = $"TqkLibrary.FFmpeg.{licenseSegment}.Native.{osName}.{arch}";
                 string idTools = $"TqkLibrary.FFmpeg.{licenseSegment}.Tools.{osName}.{arch}";
 
@@ -186,6 +196,7 @@ namespace AutoPackager
                     .Replace("$os$", osId)
                     .Replace("$arch$", arch)
                     .Replace("$license$", licenseSpdx)
+                    .Replace("$toolsList$", toolsList)
                     .Replace("$path$", $@"{relativeBaseDir}\bin");
 
                 string nativeNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.Native.nuspec");
@@ -199,11 +210,11 @@ namespace AutoPackager
                 string rid = $"{osId}-{arch}";
                 string tag = Regex.Replace(Path.GetFileName(archiveFile), @"\.(zip|tar\.xz)$", "", RegexOptions.IgnoreCase);
                 bool isV2 = licenseSegment.EndsWith("2", StringComparison.Ordinal);
-                bool hasFfplay = !(osName == "Linux" && isV2);
                 string nativeExtra = osName == "Win" ? " + import libraries (`.lib`) + C headers" : " + C headers";
-                string toolsList = hasFfplay ? "ffmpeg, ffplay, ffprobe" : "ffmpeg, ffprobe";
                 string v2Note = isV2
-                    ? "\n> **Note:** `Gpl2`/`Lgpl2` builds have OpenSSL and its dependents (srt, libssh, libcurl, libaribcaption, pulseaudio) disabled for license compatibility. On Linux, `sdl2` is also disabled, so `ffplay` is **not** included.\n"
+                    ? "\n> **Note:** `Gpl2`/`Lgpl2` builds have OpenSSL and its dependents (srt, libssh, libcurl, libaribcaption, pulseaudio) disabled for license compatibility."
+                      + (toolNames.Contains("ffplay") ? "" : " On Linux, `sdl2` is also disabled, so `ffplay` is **not** included.")
+                      + "\n"
                     : "";
 
                 string readmeContent = string.Join("\n", new[]
@@ -217,7 +228,7 @@ namespace AutoPackager
                     "",
                     "| Package | Contents |",
                     "|---|---|",
-                    $"| `{idNative}` | Shared libraries: avcodec, avdevice, avfilter, avformat, avutil, swresample, swscale{nativeExtra} |",
+                    $"| `{idNative}` | Shared libraries: {nativeLibList}{nativeExtra} |",
                     $"| `{idTools}` | Command-line tools: {toolsList}; depends on `{idNative}` |",
                     "",
                     "## How the binaries are delivered",
@@ -450,6 +461,14 @@ namespace AutoPackager
 
                 string relativeBaseDir = ".";
 
+                // Same as the desktop pass: describe the libraries and programs actually packed,
+                // so a rebuild of an older version (which still ships libpostproc) documents itself.
+                string[] nativeLibNames = FindFFmpegLibNames(Path.Combine(extractedBaseDir, "lib"));
+                string[] toolNames = FindToolNames(Path.Combine(extractedBaseDir, "bin"));
+                string nativeLibList = string.Join(", ", nativeLibNames);
+                string toolsList = string.Join(", ", toolNames);
+                string toolsListProse = JoinNatural(toolNames.Select(name => $"`{name}`").ToArray());
+
                 string idNative = $"TqkLibrary.FFmpeg.{licenseSegment}.Native.{osName}.{arch}";
                 string idTools = $"TqkLibrary.FFmpeg.{licenseSegment}.Tools.{osName}.{arch}";
 
@@ -475,6 +494,7 @@ namespace AutoPackager
                     .Replace("$os$", osId)
                     .Replace("$arch$", arch)
                     .Replace("$license$", licenseSpdx)
+                    .Replace("$toolsList$", toolsList)
                     .Replace("$path$", $@"{relativeBaseDir}\bin");
 
                 string nativeNuspecPath = Path.Combine(extractPath, "TqkLibrary.FFmpeg.Native.Android.nuspec");
@@ -502,8 +522,8 @@ namespace AutoPackager
                     "",
                     "| Package | Contents |",
                     "|---|---|",
-                    $"| `{idNative}` | Shared libraries: avcodec, avdevice, avfilter, avformat, avutil, postproc, swresample, swscale + the NDK C++ runtime `libc++_shared.so` + C headers |",
-                    $"| `{idTools}` | Command-line executables: ffmpeg, ffprobe; depends on `{idNative}` |",
+                    $"| `{idNative}` | Shared libraries: {nativeLibList} + the NDK C++ runtime `libc++_shared.so` + C headers |",
+                    $"| `{idTools}` | Command-line executables: {toolsList}; depends on `{idNative}` |",
                     "",
                     "## How the binaries are delivered",
                     "",
@@ -525,11 +545,11 @@ namespace AutoPackager
                     "",
                     "## Tools package caveat (executables only, shell use)",
                     "",
-                    $"This package ships **only** `ffmpeg` and `ffprobe`; the shared libraries they link against come from `{idNative}` and are deliberately not duplicated here. Run them with `LD_LIBRARY_PATH` pointing at that package's `.so` files (`libc++_shared.so` included):",
+                    $"This package ships **only** {toolsListProse}; the shared libraries they link against come from `{idNative}` and are deliberately not duplicated here. Run them with `LD_LIBRARY_PATH` pointing at that package's `.so` files (`libc++_shared.so` included):",
                     "",
                     "```sh",
-                    "adb push ffmpeg ffprobe lib*.so /data/local/tmp/ff/",
-                    "adb shell chmod +x /data/local/tmp/ff/ffmpeg /data/local/tmp/ff/ffprobe",
+                    $"adb push {string.Join(" ", toolNames)} lib*.so /data/local/tmp/ff/",
+                    $"adb shell chmod +x {string.Join(" ", toolNames.Select(name => $"/data/local/tmp/ff/{name}"))}",
                     "adb shell \"LD_LIBRARY_PATH=/data/local/tmp/ff /data/local/tmp/ff/ffmpeg -version\"",
                     "```",
                     "",
@@ -623,6 +643,56 @@ namespace AutoPackager
 
             Console.WriteLine("All Android packages generated successfully.");
         }
+
+        // FFmpeg's own shared libraries are exactly libav*/libsw*/libpostproc. Anything else in
+        // the same folder (the bundled libc++_shared.so on Android) is documented separately.
+        static readonly Regex FFmpegLibFileRegex = new Regex(
+            @"^(?:lib)?(?<name>av[a-z]+|sw[a-z]+|postproc)(?:-\d+)?\.(?:dll|so)(?:\.\d+)*$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// FFmpeg library short names (avcodec, postproc, ...) present in <paramref name="libDir"/>,
+        /// alphabetically. Read from disk instead of hard-coded because the set changes between
+        /// releases: libpostproc ships up to FFmpeg 7.x and is gone from 8.0 on.
+        /// </summary>
+        static string[] FindFFmpegLibNames(string libDir)
+        {
+            if (!Directory.Exists(libDir))
+                return Array.Empty<string>();
+
+            return Directory.GetFiles(libDir)
+                .Select(path => FFmpegLibFileRegex.Match(Path.GetFileName(path)))
+                .Where(m => m.Success)
+                .Select(m => m.Groups["name"].Value.ToLowerInvariant())
+                .Distinct()
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Command-line programs present in <paramref name="binDir"/>, in canonical order. Also not
+        /// assumable: Linux Gpl2/Lgpl2 builds disable sdl2 and ship no ffplay, and Android ships none.
+        /// </summary>
+        static string[] FindToolNames(string binDir)
+        {
+            string[] known = { "ffmpeg", "ffplay", "ffprobe" };
+            if (!Directory.Exists(binDir))
+                return Array.Empty<string>();
+
+            var present = Directory.GetFiles(binDir)
+                .Select(path => Path.GetFileNameWithoutExtension(path).ToLowerInvariant())
+                .ToHashSet();
+
+            return known.Where(present.Contains).ToArray();
+        }
+
+        /// <summary>Joins items for prose: "a", "a and b", "a, b and c".</summary>
+        static string JoinNatural(string[] items) => items.Length switch
+        {
+            0 => "(none)",
+            1 => items[0],
+            _ => string.Join(", ", items.Take(items.Length - 1)) + " and " + items[^1]
+        };
 
         static void RunCommand(string exe, string args, string workingDir = null, bool ignoreErrors = false)
         {
